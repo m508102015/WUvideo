@@ -7,9 +7,11 @@ import {
   hashPassword,
   normalizeUsername,
   parseBootstrapAccounts,
+  resolveLoginMode,
   signSessionPayload,
   verifyPassword,
   verifySessionToken,
+  type LoginMode,
   type SeedAccountInput,
   type SessionPayload,
   type StoredAccountRecord,
@@ -22,7 +24,7 @@ import {
   type Role,
 } from '@/lib/auth/permissions';
 
-export type LoginMode = 'none' | 'legacy_password' | 'managed';
+export type { LoginMode };
 
 export interface ServerAuthSession {
   accountId: string;
@@ -79,7 +81,7 @@ const IPTV_SOURCES = process.env.IPTV_SOURCES || process.env.NEXT_PUBLIC_IPTV_SO
 const MERGE_SOURCES = process.env.MERGE_SOURCES || process.env.NEXT_PUBLIC_MERGE_SOURCES || '';
 const DANMAKU_API_URL = process.env.DANMAKU_API_URL || process.env.NEXT_PUBLIC_DANMAKU_API_URL || '';
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-const MANAGED_AUTH_ENABLED = process.env.MANAGED_AUTH_ENABLED === 'true';
+const MANAGED_AUTH_FORCED = process.env.MANAGED_AUTH_ENABLED === 'true';
 
 const effectiveAdminPassword = ADMIN_PASSWORD || ACCESS_PASSWORD;
 
@@ -100,9 +102,6 @@ function getRedisClient(): Redis | null {
 }
 
 function isManagedAuthEnabled(): boolean {
-  if (MANAGED_AUTH_ENABLED) {
-    return true;
-  }
   return !!AUTH_SECRET && !!getRedisClient();
 }
 
@@ -220,12 +219,14 @@ function getPublicRuntimeConfig(): Omit<PublicAuthConfig, 'hasAuth' | 'hasPremiu
 }
 
 export async function getPublicAuthConfig(): Promise<PublicAuthConfig> {
+  const managedAuthEnabled = isManagedAuthEnabled();
   const managedAccountCount = await getManagedAccountCount();
-  const loginMode: LoginMode = managedAccountCount > 0
-    ? 'managed'
-    : isLegacyAuthConfigured()
-      ? 'legacy_password'
-      : 'none';
+  const loginMode = resolveLoginMode({
+    managedAccountCount,
+    managedAuthEnabled,
+    managedAuthForced: MANAGED_AUTH_FORCED,
+    legacyAuthConfigured: isLegacyAuthConfigured(),
+  });
 
   return {
     hasAuth: loginMode !== 'none',

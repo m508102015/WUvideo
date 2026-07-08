@@ -269,7 +269,7 @@ KVideo 现在支持两套认证模式：
 - 配置 `AUTH_SECRET`
 - 配置 `UPSTASH_REDIS_REST_URL`
 - 配置 `UPSTASH_REDIS_REST_TOKEN`
-- （可选）配置 `MANAGED_AUTH_ENABLED=true` 强制启用托管账户模式 （默认方式无法开启时可添加此环境变量）
+- （可选）配置 `MANAGED_AUTH_ENABLED=true` 强制优先使用托管账户模式
 
 启用后：
 
@@ -278,7 +278,7 @@ KVideo 现在支持两套认证模式：
 - 超级管理员可在设置页直接管理账户和权限
 - 配置同步、历史、收藏等跨设备数据会按登录账户自动隔离
 
-> **强制启用托管模式**：设置 `MANAGED_AUTH_ENABLED=true` 可跳过 `AUTH_SECRET` 和 Redis 的检查，强制进入托管账户模式。
+> **强制优先托管模式**：设置 `MANAGED_AUTH_ENABLED=true` 只会改变认证模式选择，不会跳过 `AUTH_SECRET` 和 Redis 检查。缺少 `AUTH_SECRET`、`UPSTASH_REDIS_REST_URL` 或 `UPSTASH_REDIS_REST_TOKEN` 时，托管账户模式仍不会启用。
 首次启用时，如果 Redis 里还没有账户，会自动使用 `ADMIN_PASSWORD` 和 `ACCOUNTS` 作为引导种子创建首批托管账户。
 
 ### 方式二：单管理员密码（环境变量模式）
@@ -682,6 +682,7 @@ docker run -e PORT=8080 -p 8080:8080 --name kvideo kuekhaoyang/kvideo:latest
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `AUTH_SECRET` | 托管账户模式的会话签名密钥；启用 Redis 托管账户时必填 | - |
+| `MANAGED_AUTH_ENABLED` | 设为 `true` 时强制优先使用托管账户模式；仍要求 `AUTH_SECRET` 和 Upstash Redis 配置完整 | - |
 | `ADMIN_PASSWORD` | 管理员密码；环境变量模式直接生效，也可作为托管模式首次引导的超级管理员种子 | - |
 | `ACCESS_PASSWORD` | 访问密码（向后兼容，等同于 `ADMIN_PASSWORD`） | - |
 | `ACCOUNTS` | 多账户配置；支持 `密码:名称[:角色[:权限1\|权限2]]` 和 `用户名:密码:名称[:角色[:权限1\|权限2]]` 两种格式 | - |

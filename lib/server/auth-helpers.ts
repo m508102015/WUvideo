@@ -5,6 +5,8 @@ import {
   type Role,
 } from '@/lib/auth/permissions';
 
+export type LoginMode = 'none' | 'legacy_password' | 'managed';
+
 export interface SeedAccountInput {
   username: string;
   password: string;
@@ -34,6 +36,24 @@ export interface SessionPayload {
   customPermissions?: Permission[];
   mode: 'managed' | 'legacy';
   iat: number;
+}
+
+export function resolveLoginMode({
+  managedAccountCount,
+  managedAuthEnabled,
+  managedAuthForced,
+  legacyAuthConfigured,
+}: {
+  managedAccountCount: number;
+  managedAuthEnabled: boolean;
+  managedAuthForced: boolean;
+  legacyAuthConfigured: boolean;
+}): LoginMode {
+  if (managedAccountCount > 0 || (managedAuthForced && managedAuthEnabled)) {
+    return 'managed';
+  }
+
+  return legacyAuthConfigured ? 'legacy_password' : 'none';
 }
 
 const PBKDF2_ITERATIONS = 120_000;

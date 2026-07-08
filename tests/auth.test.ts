@@ -4,6 +4,7 @@ import {
   createStoredAccount,
   hashPassword,
   parseBootstrapAccounts,
+  resolveLoginMode,
   signSessionPayload,
   verifyPassword,
   verifySessionToken,
@@ -76,6 +77,22 @@ test('createStoredAccount stores hashed password and normalized permissions', as
   assert.equal(account.username, 'alice');
   assert.notEqual(account.passwordHash, 'secret');
   assert.equal(await verifyPassword('secret', account.passwordSalt, account.passwordHash), true);
+});
+
+test('MANAGED_AUTH_ENABLED does not bypass managed auth hard dependencies', () => {
+  assert.equal(resolveLoginMode({
+    managedAccountCount: 0,
+    managedAuthEnabled: false,
+    managedAuthForced: true,
+    legacyAuthConfigured: true,
+  }), 'legacy_password');
+
+  assert.equal(resolveLoginMode({
+    managedAccountCount: 0,
+    managedAuthEnabled: true,
+    managedAuthForced: true,
+    legacyAuthConfigured: true,
+  }), 'managed');
 });
 
 test('resolvePermissions applies role defaults and IPTV management inheritance', () => {
