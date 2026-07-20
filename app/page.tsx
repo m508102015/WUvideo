@@ -4,11 +4,14 @@ import { Suspense, useMemo } from 'react';
 import { SearchForm } from '@/components/search/SearchForm';
 import { NoResults } from '@/components/search/NoResults';
 import { PopularFeatures } from '@/components/home/PopularFeatures';
+import { WatchHistorySidebar } from '@/components/history/WatchHistorySidebar';
 import { FavoritesSidebar } from '@/components/favorites/FavoritesSidebar';
 import { Navbar } from '@/components/layout/Navbar';
 import { SearchResults } from '@/components/home/SearchResults';
 import { useHomePage } from '@/lib/hooks/useHomePage';
 import { useLatencyPing } from '@/lib/hooks/useLatencyPing';
+// 1. 引入 OpenCC
+import * as OpenCC from 'opencc-js';
 
 function HomePage() {
   const {
@@ -19,16 +22,31 @@ function HomePage() {
     availableSources,
     completedSources,
     totalSources,
-    handleSearch,
+    handleSearch, // 這是原本的搜尋邏輯
     handleReset,
-    handleCancelSearch,
   } = useHomePage();
+
+  // 2. 初始化繁簡轉換器 (HK -> CN)
+  // 使用 useMemo 確保只會建立一次，節省效能
+  const converter = useMemo(() => OpenCC.Converter({ from: 'hk', to: 'cn' }), []);
+
+  // 3. 建立一個「攔截並轉換」的新函數
+  const handleConvertedSearch = (term: string) => {
+    if (!term) return;
+    
+    // 將輸入文字轉為簡體
+    const simplifiedTerm = converter(term);
+    
+    // (可選) 在 Console 印出轉換結果方便除錯
+    // console.log(`搜尋轉換: ${term} -> ${simplifiedTerm}`);
+    
+    // 呼叫原本的搜尋函數，但傳入簡體字
+    handleSearch(simplifiedTerm);
+  };
 
   // Real-time latency pinging
   const sourceUrls = useMemo(() =>
-    availableSources.flatMap((source) =>
-      source.baseUrl ? [{ id: source.id, baseUrl: source.baseUrl }] : []
-    ),
+    availableSources.map(s => ({ id: s.id, baseUrl: s.id })), 
     [availableSources]
   );
 
@@ -48,9 +66,9 @@ function HomePage() {
         zIndex: 1000
       }}>
         <SearchForm
-          onSearch={handleSearch}
+          // 4. 修改這裡：換成我們新的轉換函數
+          onSearch={handleConvertedSearch} 
           onClear={handleReset}
-          onCancelSearch={handleCancelSearch}
           isLoading={loading}
           initialQuery={query}
           currentSource=""
@@ -72,11 +90,8 @@ function HomePage() {
         )}
 
         {/* Popular Features - Homepage */}
-        {!loading && !hasSearched && (
-          <>
-            <PopularFeatures onSearch={handleSearch} />
-          </>
-        )}
+        {/* 5. 修改這裡：熱門推薦點擊也要自動轉簡體 */}
+        {!loading && !hasSearched && <PopularFeatures onSearch={handleConvertedSearch} />}
 
         {/* No Results */}
         {!loading && hasSearched && results.length === 0 && (
@@ -86,6 +101,9 @@ function HomePage() {
 
       {/* Favorites Sidebar - Left */}
       <FavoritesSidebar />
+
+      {/* Watch History Sidebar - Right */}
+      <WatchHistorySidebar />
     </div>
   );
 }
