@@ -70,6 +70,11 @@ export function EpisodeList({
   const sourceItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [sourceExpanded, setSourceExpanded] = useState(false);
   const [showAllSources, setShowAllSources] = useState(false);
+  // list = classic vertical list; grid = multi-column with section pages
+  const [episodeLayout, setEpisodeLayout] = useState<'list' | 'grid'>('grid');
+  const [episodePage, setEpisodePage] = useState(0);
+
+  const EPISODES_PER_PAGE = 50;
 
   // Source latency state
   const [latencies, setLatencies] = useState<Record<string, number>>({});
@@ -228,6 +233,46 @@ export function EpisodeList({
     if (!episodes) return null;
     return isReversed ? [...episodes].reverse() : episodes;
   }, [episodes, isReversed]);
+
+  const totalEpisodePages = useMemo(() => {
+    if (!displayEpisodes || displayEpisodes.length === 0) return 1;
+    return Math.max(1, Math.ceil(displayEpisodes.length / EPISODES_PER_PAGE));
+  }, [displayEpisodes]);
+
+  // Keep the current episode's page visible when order/layout changes
+  useEffect(() => {
+    if (!episodes || episodes.length === 0) {
+      setEpisodePage(0);
+      return;
+    }
+    const displayIndex = isReversed
+      ? episodes.length - 1 - currentEpisode
+      : currentEpisode;
+    const page = Math.floor(displayIndex / EPISODES_PER_PAGE);
+    setEpisodePage(Math.min(Math.max(0, page), Math.max(0, Math.ceil(episodes.length / EPISODES_PER_PAGE) - 1)));
+  }, [currentEpisode, episodes, isReversed, episodeLayout]);
+
+  const pagedEpisodes = useMemo(() => {
+    if (!displayEpisodes) return null;
+    if (episodeLayout === 'list' || displayEpisodes.length <= EPISODES_PER_PAGE) {
+      return displayEpisodes.map((episode, displayIndex) => ({ episode, displayIndex }));
+    }
+    const start = episodePage * EPISODES_PER_PAGE;
+    return displayEpisodes
+      .slice(start, start + EPISODES_PER_PAGE)
+      .map((episode, offset) => ({ episode, displayIndex: start + offset }));
+  }, [displayEpisodes, episodeLayout, episodePage]);
+
+  const pageRangeLabels = useMemo(() => {
+    if (!displayEpisodes) return [] as string[];
+    const labels: string[] = [];
+    for (let page = 0; page < totalEpisodePages; page++) {
+      const start = page * EPISODES_PER_PAGE + 1;
+      const end = Math.min((page + 1) * EPISODES_PER_PAGE, displayEpisodes.length);
+      labels.push(`${start}-${end}`);
+    }
+    return labels;
+  }, [displayEpisodes, totalEpisodePages]);
 
   // Map display index to original index
   const getOriginalIndex = useCallback((displayIndex: number) => {
@@ -399,22 +444,23 @@ export function EpisodeList({
                                   `}
                                   aria-current={isCurrent ? 'true' : undefined}
                                 >
-                                  {source.pic && (
-                                    <div className="w-10 h-14 rounded-[var(--radius-2xl)] overflow-hidden flex-shrink-0 bg-[color-mix(in_srgb,var(--glass-bg)_50%,transparent)]">
-                                      <Image
-                                        src={source.pic}
-                                        alt=""
-                                        width={40}
-                                        height={56}
-                                        className="w-full h-full object-cover"
-                                        unoptimized
-                                        referrerPolicy="no-referrer"
-                                        onError={(e) => {
-                                          (e.currentTarget as HTMLImageElement).style.display = 'none';
-                                        }}
-                                      />
-                                    </div>
-                                  )}
+                                  <div className="w-10 h-14 rounded-[var(--radius-2xl)] overflow-hidden flex-shrink-0 bg-[color-mix(in_srgb,var(--glass-bg)_50%,transparent)]">
+                                    <Image
+                                      src={source.pic || '/placeholder-poster.svg'}
+                                      alt=""
+                                      width={40}
+                                      height={56}
+                                      className="w-full h-full object-cover"
+                                      unoptimized
+                                      referrerPolicy="no-referrer"
+                                      onError={(e) => {
+                                        const target = e.currentTarget as HTMLImageElement;
+                                        if (target.dataset.fallback === '1') return;
+                                        target.dataset.fallback = '1';
+                                        target.src = '/placeholder-poster.svg';
+                                      }}
+                                    />
+                                  </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="font-medium text-sm truncate flex items-center gap-1.5">
                                       {source.sourceName || source.source}
@@ -478,22 +524,23 @@ export function EpisodeList({
                               `}
                               aria-current={isCurrent ? 'true' : undefined}
                             >
-                              {source.pic && (
-                                <div className="w-10 h-14 rounded-[var(--radius-2xl)] overflow-hidden flex-shrink-0 bg-[color-mix(in_srgb,var(--glass-bg)_50%,transparent)]">
-                                  <Image
-                                    src={source.pic}
-                                    alt=""
-                                    width={40}
-                                    height={56}
-                                    className="w-full h-full object-cover"
-                                    unoptimized
-                                    referrerPolicy="no-referrer"
-                                    onError={(e) => {
-                                      (e.currentTarget as HTMLImageElement).style.display = 'none';
-                                    }}
-                                  />
-                                </div>
-                              )}
+                              <div className="w-10 h-14 rounded-[var(--radius-2xl)] overflow-hidden flex-shrink-0 bg-[color-mix(in_srgb,var(--glass-bg)_50%,transparent)]">
+                                <Image
+                                  src={source.pic || '/placeholder-poster.svg'}
+                                  alt=""
+                                  width={40}
+                                  height={56}
+                                  className="w-full h-full object-cover"
+                                  unoptimized
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement;
+                                    if (target.dataset.fallback === '1') return;
+                                    target.dataset.fallback = '1';
+                                    target.src = '/placeholder-poster.svg';
+                                  }}
+                                />
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium text-sm truncate flex items-center gap-1.5">
                                   {source.sourceName || source.source}
@@ -551,40 +598,59 @@ export function EpisodeList({
         </div>
       )}
 
-      <div className="text-lg sm:text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
+      <div className="text-lg sm:text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2 flex-wrap">
         <Icons.List size={20} className="sm:w-6 sm:h-6" />
         <span>选集</span>
         {episodes && (
           <Badge variant="primary">{episodes.length}</Badge>
         )}
-        {/* Reverse order toggle button - only show when more than 1 episode */}
-        {showReverseToggle && !episodeSectionCollapsed && (
+        <div className="ml-auto flex items-center gap-1.5">
+          {/* Layout toggle */}
+          {showReverseToggle && !episodeSectionCollapsed && (
+            <button
+              onClick={() => setEpisodeLayout((current) => (current === 'grid' ? 'list' : 'grid'))}
+              className={`
+                p-1.5 rounded-[var(--radius-2xl)] transition-all duration-200 cursor-pointer
+                ${episodeLayout === 'grid'
+                  ? 'bg-[var(--accent-color)] text-white'
+                  : 'bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)]'
+                }
+              `}
+              aria-label={episodeLayout === 'grid' ? '切换为列表' : '切换为网格'}
+              title={episodeLayout === 'grid' ? '切换为列表' : '切换为网格'}
+            >
+              <Icons.Layers size={16} />
+            </button>
+          )}
+          {/* Reverse order toggle button - only show when more than 1 episode */}
+          {showReverseToggle && !episodeSectionCollapsed && (
+            <button
+              onClick={() => onToggleReverse?.(!isReversed)}
+              className={`
+                p-1.5 rounded-[var(--radius-2xl)] transition-all duration-200 cursor-pointer
+                ${isReversed
+                  ? 'bg-[var(--accent-color)] text-white'
+                  : 'bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)]'
+                }
+              `}
+              aria-label={isReversed ? '恢复正序' : '倒序排列'}
+              title={isReversed ? '恢复正序' : '倒序排列'}
+            >
+              <Icons.ArrowUpDown size={16} />
+            </button>
+          )}
           <button
-            onClick={() => onToggleReverse?.(!isReversed)}
-            className={`
-              ml-auto p-1.5 rounded-[var(--radius-2xl)] transition-all duration-200
-              ${isReversed
-                ? 'bg-[var(--accent-color)] text-white'
-                : 'bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)]'
-              }
-            `}
-            aria-label={isReversed ? '恢复正序' : '倒序排列'}
-            title={isReversed ? '恢复正序' : '倒序排列'}
+            onClick={() => onEpisodeSectionCollapseChange?.(!episodeSectionCollapsed)}
+            className="p-1.5 rounded-[var(--radius-2xl)] bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)] transition-all duration-200 cursor-pointer"
+            aria-label={episodeSectionCollapsed ? '展开选集列表' : '折叠选集列表'}
+            title={episodeSectionCollapsed ? '展开选集列表' : '折叠选集列表'}
           >
-            <Icons.ArrowUpDown size={16} />
+            <Icons.ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${episodeSectionCollapsed ? '-rotate-90' : 'rotate-0'}`}
+            />
           </button>
-        )}
-        <button
-          onClick={() => onEpisodeSectionCollapseChange?.(!episodeSectionCollapsed)}
-          className="p-1.5 rounded-[var(--radius-2xl)] bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)] transition-all duration-200 cursor-pointer"
-          aria-label={episodeSectionCollapsed ? '展开选集列表' : '折叠选集列表'}
-          title={episodeSectionCollapsed ? '展开选集列表' : '折叠选集列表'}
-        >
-          <Icons.ChevronDown
-            size={16}
-            className={`transition-transform duration-200 ${episodeSectionCollapsed ? '-rotate-90' : 'rotate-0'}`}
-          />
-        </button>
+        </div>
       </div>
 
       {episodeSectionCollapsed ? (
@@ -597,59 +663,92 @@ export function EpisodeList({
           </div>
         </div>
       ) : (
-        <div
-          ref={listRef}
-          className="max-h-[400px] sm:max-h-[600px] overflow-y-auto space-y-2 pr-2"
-          role="radiogroup"
-          aria-label="剧集选择"
-        >
-          {displayEpisodes && displayEpisodes.length > 0 ? (
-            displayEpisodes.map((episode, displayIndex) => {
-              const originalIndex = getOriginalIndex(displayIndex);
-              const isCurrentEpisode = currentEpisode === originalIndex;
-
-              return (
+        <div className="space-y-3">
+          {/* Section page chips for long episode lists */}
+          {episodeLayout === 'grid' && totalEpisodePages > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              {pageRangeLabels.map((label, page) => (
                 <button
-                  key={originalIndex}
-                  ref={(el) => { buttonRefs.current[displayIndex] = el; }}
-                  onClick={() => onEpisodeClick(episode, originalIndex)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onEpisodeClick(episode, originalIndex);
-                    }
-                  }}
-                  tabIndex={0}
-                  role="radio"
-                  aria-checked={isCurrentEpisode}
-                  aria-current={isCurrentEpisode ? 'true' : undefined}
-                  aria-label={`${episode.name || `第 ${originalIndex + 1} 集`}${isCurrentEpisode ? '，当前播放' : ''}`}
+                  key={label}
+                  onClick={() => setEpisodePage(page)}
                   className={`
-                    w-full px-3 py-2 sm:px-4 sm:py-3 rounded-[var(--radius-2xl)] text-left transition-[var(--transition-fluid)] cursor-pointer
-                    ${isCurrentEpisode
-                      ? 'bg-[var(--accent-color)] text-white shadow-[0_4px_12px_color-mix(in_srgb,var(--accent-color)_50%,transparent)] brightness-110'
-                      : 'bg-[var(--glass-bg)] hover:bg-[var(--glass-hover)] text-[var(--text-color)] border border-[var(--glass-border)]'
+                    px-2.5 py-1 rounded-[var(--radius-2xl)] text-xs font-medium transition-all duration-200 cursor-pointer
+                    ${episodePage === page
+                      ? 'bg-[var(--accent-color)] text-white'
+                      : 'bg-[var(--glass-bg)] text-[var(--text-color-secondary)] hover:bg-[var(--glass-hover)] border border-[var(--glass-border)]'
                     }
-                    focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2
                   `}
+                  aria-current={episodePage === page ? 'true' : undefined}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm sm:text-base">
-                      {episode.name || `第 ${originalIndex + 1} 集`}
-                    </span>
-                    {isCurrentEpisode && (
-                      <Icons.Play size={16} />
-                    )}
-                  </div>
+                  {label}
                 </button>
-              );
-            })
-          ) : (
-            <div className="text-center py-8 text-[var(--text-secondary)]">
-              <Icons.Inbox size={48} className="text-[var(--text-color-secondary)] mx-auto mb-2" />
-              <p>暂无剧集信息</p>
+              ))}
             </div>
           )}
+
+          <div
+            ref={listRef}
+            className={`max-h-[400px] sm:max-h-[600px] overflow-y-auto pr-1 ${
+              episodeLayout === 'grid'
+                ? 'grid grid-cols-3 sm:grid-cols-4 gap-2'
+                : 'space-y-2'
+            }`}
+            role="radiogroup"
+            aria-label="剧集选择"
+          >
+            {pagedEpisodes && pagedEpisodes.length > 0 ? (
+              pagedEpisodes.map(({ episode, displayIndex }) => {
+                const originalIndex = getOriginalIndex(displayIndex);
+                const isCurrentEpisode = currentEpisode === originalIndex;
+                const isGrid = episodeLayout === 'grid';
+
+                return (
+                  <button
+                    key={originalIndex}
+                    ref={(el) => { buttonRefs.current[displayIndex] = el; }}
+                    onClick={() => onEpisodeClick(episode, originalIndex)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onEpisodeClick(episode, originalIndex);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="radio"
+                    aria-checked={isCurrentEpisode}
+                    aria-current={isCurrentEpisode ? 'true' : undefined}
+                    aria-label={`${episode.name || `第 ${originalIndex + 1} 集`}${isCurrentEpisode ? '，当前播放' : ''}`}
+                    className={`
+                      rounded-[var(--radius-2xl)] transition-[var(--transition-fluid)] cursor-pointer
+                      ${isGrid
+                        ? 'px-2 py-2.5 text-center'
+                        : 'w-full px-3 py-2 sm:px-4 sm:py-3 text-left'
+                      }
+                      ${isCurrentEpisode
+                        ? 'bg-[var(--accent-color)] text-white shadow-[0_4px_12px_color-mix(in_srgb,var(--accent-color)_50%,transparent)] brightness-110'
+                        : 'bg-[var(--glass-bg)] hover:bg-[var(--glass-hover)] text-[var(--text-color)] border border-[var(--glass-border)]'
+                      }
+                      focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2
+                    `}
+                  >
+                    <div className={`flex items-center ${isGrid ? 'justify-center gap-1' : 'justify-between'}`}>
+                      <span className={`font-medium ${isGrid ? 'text-xs sm:text-sm truncate' : 'text-sm sm:text-base'}`}>
+                        {episode.name || `第 ${originalIndex + 1} 集`}
+                      </span>
+                      {isCurrentEpisode && !isGrid && (
+                        <Icons.Play size={16} />
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-[var(--text-secondary)] col-span-full">
+                <Icons.Inbox size={48} className="text-[var(--text-color-secondary)] mx-auto mb-2" />
+                <p>暂无剧集信息</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </Card>

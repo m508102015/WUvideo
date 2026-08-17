@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createStoredAccount,
   hashPassword,
+  isBootstrapAdminCredential,
   parseBootstrapAccounts,
   resolveLoginMode,
   shouldUseSecureSessionCookie,
@@ -17,21 +18,22 @@ import {
 } from '@/lib/auth/permissions';
 
 function withNodeEnv<T>(value: string | undefined, callback: () => T): T {
-  const previous = process.env.NODE_ENV;
+  const environment = process.env as Record<string, string | undefined>;
+  const previous = environment.NODE_ENV;
 
   if (value === undefined) {
-    delete process.env.NODE_ENV;
+    delete environment.NODE_ENV;
   } else {
-    process.env.NODE_ENV = value;
+    environment.NODE_ENV = value;
   }
 
   try {
     return callback();
   } finally {
     if (previous === undefined) {
-      delete process.env.NODE_ENV;
+      delete environment.NODE_ENV;
     } else {
-      process.env.NODE_ENV = previous;
+      environment.NODE_ENV = previous;
     }
   }
 }
@@ -71,6 +73,13 @@ test('hashPassword and verifyPassword round-trip correctly', async () => {
   assert.ok(password.salt);
   assert.equal(await verifyPassword('secret-123', password.salt, password.hash), true);
   assert.equal(await verifyPassword('wrong-password', password.salt, password.hash), false);
+});
+
+test('bootstrap admin credential only accepts the configured admin password', () => {
+  assert.equal(isBootstrapAdminCredential('ADMIN', 'current-secret', 'current-secret'), true);
+  assert.equal(isBootstrapAdminCredential('admin', 'old-secret', 'current-secret'), false);
+  assert.equal(isBootstrapAdminCredential('viewer', 'current-secret', 'current-secret'), false);
+  assert.equal(isBootstrapAdminCredential('admin', '', ''), false);
 });
 
 test('signSessionPayload and verifySessionToken reject tampering', async () => {

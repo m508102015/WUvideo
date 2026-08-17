@@ -4,7 +4,12 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { transform } from 'esbuild';
 
-const TARGET = 'chrome83';
+// Android 9 / Amlogic TV WebViews are often Chrome 66–74.
+// chrome83 still emits `??` (Chrome 80+), which white-screens those devices.
+// chrome69 downlevels `??` / `?.` / logical assignment in application code.
+const TARGET = 'chrome69';
+// Hard-fail only on logical assignment: unambiguous and never appears in polyfill
+// feature-detect regexes (e.g. `/()??/`) or minified ternaries (`E?.3:1`).
 const UNSUPPORTED_LOGICAL_ASSIGNMENT = /(\?\?=|\|\|=|&&=)/;
 
 async function pathExists(filePath) {

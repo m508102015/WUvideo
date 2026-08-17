@@ -1,0 +1,18 @@
+[
+  {"id":"PRRC_kwDOQWhk_86kXUFt","pr":53,"priority":"critical","status":"fixed","contract":"typescript-config","reason":"The reviewed PR is unavailable, while current tsconfig.json is a valid compiler configuration and the authoritative TypeScript check guards it."},
+  {"id":"PRRC_kwDOQWhk_86wUdVG","pr":123,"priority":"critical","status":"fixed","contract":"next-route","reason":"The reviewed PR is unavailable and the current route declares runtime exactly once; TypeScript and production builds guard duplicate declarations."},
+  {"id":"PRRC_kwDOQWhk_861aFoo","pr":145,"priority":"medium","status":"fixed","contract":"navigation","reason":"The current favorites navigation link includes data-focusable and browser UI checks exercise focusable controls."},
+  {"id":"PRRC_kwDOQWhk_861aFos","pr":145,"priority":"medium","status":"fixed","contract":"favorites","reason":"FavoritesGrid currently imports useMemo."},
+  {"id":"PRRC_kwDOQWhk_861aFo8","pr":145,"priority":"medium","status":"fixed","contract":"favorites","reason":"FavoritesGrid currently memoizes the FavoriteItem-to-Video transformation by favorites identity."},
+  {"id":"PRRC_kwDOQWhk_861aFpB","pr":145,"priority":"medium","status":"fixed","contract":"favorites","reason":"Normal and premium favorites routes now delegate to the shared FavoritesPageContent component."},
+  {"id":"PRRC_kwDOQWhk_86_GmQI","pr":180,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed PR is unavailable and its 1.json artifact is absent from the current repository, so those mixed-content entries are not shipped."},
+  {"id":"PRRC_kwDOQWhk_86_GmQN","pr":180,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed 1.json artifact is absent from the current repository; its identifier naming cannot affect runtime state."},
+  {"id":"PRRC_kwDOQWhk_86_GmQS","pr":180,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed 1.json artifact is absent from the current repository; its identifier spelling cannot affect runtime state."},
+  {"id":"PRRC_kwDOQWhk_86_GmQX","pr":180,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed 1.json artifact and duplicate source list are absent from the current repository."},
+  {"id":"PRRC_kwDOQWhk_86_GmWO","pr":181,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed PR is unavailable and no generic 1.json source catalog is shipped in the current repository."},
+  {"id":"PRRC_kwDOQWhk_86_GmWR","pr":181,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed 1.json artifact is absent from the current repository, so its HTTP endpoints are not shipped."},
+  {"id":"PRRC_kwDOQWhk_87AFPP1","pr":184,"priority":"high","status":"dismissed","contract":"source-config","reason":"The reviewed PR is unavailable and its 1.json baseUrl definitions are absent from the current repository."},
+  {"id":"PRRC_kwDOQWhk_87AFPP5","pr":184,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed generic file is absent from the current repository."},
+  {"id":"PRRC_kwDOQWhk_87AFPP8","pr":184,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed 1.json artifact is absent; current source identifiers are explicit application configuration rather than that proposal."},
+  {"id":"PRRC_kwDOQWhk_87AFPP_","pr":184,"priority":"medium","status":"dismissed","contract":"source-config","reason":"The reviewed duplicate 1.json entries are absent from the current repository."}
+]

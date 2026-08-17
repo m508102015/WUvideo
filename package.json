@@ -1,6 +1,6 @@
 {
   "name": "kvideo",
-  "version": "4.9.13",
+  "version": "4.9.20",
   "private": true,
   "scripts": {
     "dev": "node scripts/next-with-lan-access.mjs dev",
@@ -18,7 +18,7 @@
     "@vercel/analytics": "^2.0.1",
     "hls.js": "^1.6.15",
     "lucide-react": "^0.577.0",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "opencc-js": "^1.0.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -32,7 +32,7 @@
     "@types/react-dom": "^19",
     "esbuild": "^0.27.7",
     "eslint": "^9.25.1",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.2.12",
     "postcss": "^8.5.8",
     "postcss-preset-env": "^11.2.0",
     "tailwindcss": "^4",

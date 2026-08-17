@@ -10,6 +10,7 @@ import { LatencyBadge } from '@/components/ui/LatencyBadge';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 
 import { Video } from '@/lib/types';
+import { htmlToText } from '@/lib/utils/html';
 import { parseVideoTitle } from '@/lib/utils/video';
 import type { ResolutionInfo } from '@/lib/hooks/useResolutionProbe';
 
@@ -37,6 +38,7 @@ export const VideoCard = memo<VideoCardProps>(({
     isProbing = false,
 }) => {
     const displayLatency = latencies[video.source] ?? video.latency;
+    const displayRemarks = htmlToText(video.vod_remarks);
     return (
         <div
             style={{
@@ -78,16 +80,26 @@ export const VideoCard = memo<VideoCardProps>(({
                                 referrerPolicy="no-referrer"
                                 onError={(e) => {
                                     const target = e.currentTarget as HTMLImageElement;
-                                    target.style.opacity = '0';
+                                    if (target.dataset.fallback === '1') {
+                                        target.style.opacity = '0';
+                                        return;
+                                    }
+                                    target.dataset.fallback = '1';
+                                    target.src = '/placeholder-poster.svg';
                                 }}
                             />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                                <Icons.Film size={64} className="text-[var(--text-color-secondary)]" />
-                            </div>
+                            <Image
+                                src="/placeholder-poster.svg"
+                                alt={video.vod_name}
+                                fill
+                                className="object-cover rounded-[var(--radius-2xl)]"
+                                sizes="(max-width: 640px) 33vw, (max-width: 1024px) 20vw, 16vw"
+                                unoptimized
+                            />
                         )}
 
-                        {/* Fallback Icon - visible when image fails */}
+                        {/* Fallback Icon - visible when image fails completely */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center -z-10 gap-2">
                             <Icons.Film size={48} className="text-[var(--text-color-secondary)] opacity-40" />
                             <span className="text-xs text-[var(--text-color-secondary)] opacity-60 px-2 text-center line-clamp-2">{video.vod_name}</span>
@@ -161,6 +173,14 @@ export const VideoCard = memo<VideoCardProps>(({
                                     <h4 className="font-semibold text-sm text-[var(--text-color)] line-clamp-2 min-h-[2.5rem] mb-1">
                                         {cleanTitle}
                                     </h4>
+                                    {displayRemarks && (
+                                        <p
+                                            className="text-xs text-[var(--text-color-secondary)] mt-1 line-clamp-1"
+                                            title={displayRemarks}
+                                        >
+                                            {displayRemarks}
+                                        </p>
+                                    )}
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         {resolution ? (
                                             <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${resolution.color}`}>
@@ -191,4 +211,3 @@ export const VideoCard = memo<VideoCardProps>(({
 });
 
 VideoCard.displayName = 'VideoCard';
-

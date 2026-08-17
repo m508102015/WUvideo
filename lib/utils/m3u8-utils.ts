@@ -3,7 +3,13 @@
  * Utility functions for M3U8 playlist manipulation
  */
 
-import { parseBlocks, learnMainPattern, scoreBlock, shouldFilterBlock } from './m3u8-ad-detector';
+import {
+    parseBlocks,
+    learnMainPattern,
+    scoreBlock,
+    shouldFilterBlock,
+    findDuplicateSignatureBlockIndices,
+} from './m3u8-ad-detector';
 
 const INTERSTITIAL_DATERANGE_MARKERS = [
     'class="com.apple.hls.interstitial"',
@@ -67,7 +73,7 @@ function isAuxiliaryAdMetadataLine(trimmedLine: string, normalizedKeywords: stri
  * 1. Keyword matching (configurable via env)
  * 2. CUE-OUT/CUE-IN standard tags
  * 3. HLS interstitial metadata removal
- * 4. Heuristic block analysis (filename patterns, ad path keywords)
+ * 4. Heuristic block analysis (filename patterns, ad path keywords, duration signature fingerprints)
  * 
  * Also converts relative URLs to absolute URLs for Blob playback.
  * 
@@ -77,8 +83,14 @@ function isAuxiliaryAdMetadataLine(trimmedLine: string, normalizedKeywords: stri
  */
 export type AdFilterMode = 'off' | 'keyword' | 'heuristic' | 'aggressive';
 
-export function filterM3u8Ad(content: string, baseUrl: string, mode: AdFilterMode = 'heuristic', customKeywords: string[] = []): string {
+export function filterM3u8Ad(
+    content: string,
+    baseUrl: string,
+    mode: AdFilterMode = 'heuristic',
+    customKeywords: string[] = []
+): string {
     if (!content) return '';
+    if (mode === 'off') return content;
 
     // Use keywords passed from AdKeywordsWrapper (already loaded from env/file)
     const normalizedKeywords = normalizeKeywords(customKeywords);
@@ -91,31 +103,35 @@ export function filterM3u8Ad(content: string, baseUrl: string, mode: AdFilterMod
             if (urlMatch && urlMatch[1]) {
                 effectiveBaseUrl = decodeURIComponent(urlMatch[1]);
             }
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
     }
 
     const basePath = effectiveBaseUrl.substring(0, effectiveBaseUrl.lastIndexOf('/') + 1);
     let origin = '';
     try {
         origin = new URL(effectiveBaseUrl).origin;
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
 
     // 2. Global Scan: Check if any ad keywords exist in the content
-    const hasKeywordMatchInPlaylist = mode !== 'off' && hasKeywordMatch(content, normalizedKeywords);
-    const hasCueTag = mode !== 'off' && (content.includes('#EXT-X-CUE-OUT') || content.includes('#EXT-X-CUE-IN'));
+    const hasKeywordMatchInPlaylist = hasKeywordMatch(content, normalizedKeywords);
+    const hasCueTag = content.includes('#EXT-X-CUE-OUT') || content.includes('#EXT-X-CUE-IN');
 
     // 3. Heuristic Analysis: If no explicit ad signals, use block-based detection
     const lines = content.split(/\r?\n/);
-    let adLineIndices = new Set<number>();
+    const adLineIndices = new Set<number>();
 
     if (!hasCueTag && (mode === 'heuristic' || mode === 'aggressive')) {
         // No obvious ad signals - run heuristic analysis
         const blocks = parseBlocks(lines);
         if (blocks.length > 0) {
             const mainPattern = learnMainPattern(blocks);
-            for (const block of blocks) {
+            const duplicateIndices = findDuplicateSignatureBlockIndices(blocks);
+
+            for (let blockIdx = 0; blockIdx < blocks.length; blockIdx++) {
+                const block = blocks[blockIdx];
+                const isDuplicate = duplicateIndices.has(blockIdx);
                 // Pass all keywords (including custom ones) to heuristic scorer
-                const score = scoreBlock(block, mainPattern, normalizedKeywords);
+                const score = scoreBlock(block, mainPattern, normalizedKeywords, isDuplicate);
                 const threshold = mode === 'aggressive' ? 3.0 : 5.0;
 
                 if (shouldFilterBlock(score, threshold)) {
@@ -125,8 +141,8 @@ export function filterM3u8Ad(content: string, baseUrl: string, mode: AdFilterMod
                         adLineIndices.add(segment.lineIndex - 1); // EXTINF line
                     }
                 } else if (block.segments.length > 0) {
-                    // Segment-level detection: 
-                    // Even if the whole block didn't trigger, check segments individually 
+                    // Segment-level detection:
+                    // Even if the whole block didn't trigger, check segments individually
                     // if it's a suspicious single-segment "block" (common for ads without discontinuity)
                     for (const segment of block.segments) {
                         const singleSegmentBlock = {
@@ -164,16 +180,15 @@ export function filterM3u8Ad(content: string, baseUrl: string, mode: AdFilterMod
 
         // 4. Strip modern HLS interstitial metadata before the player can schedule it.
         if (
-            mode !== 'off' &&
-            (isInterstitialDateRange(trimmedLine, normalizedKeywords) ||
-                isAuxiliaryAdMetadataLine(trimmedLine, normalizedKeywords))
+            isInterstitialDateRange(trimmedLine, normalizedKeywords) ||
+            isAuxiliaryAdMetadataLine(trimmedLine, normalizedKeywords)
         ) {
             continue;
         }
 
         // 5. CUE Tag Detection (SCTE-35 Standard)
         // EXT-X-CUE-OUT marks start of ad, EXT-X-CUE-IN marks end
-        if (mode !== 'off' && trimmedLine.startsWith('#EXT-X-CUE-OUT')) {
+        if (trimmedLine.startsWith('#EXT-X-CUE-OUT')) {
             insideCueAdBlock = true;
             // Remove preceding DISCONTINUITY if present
             if (processedLines.length > 0 && processedLines[processedLines.length - 1].trim() === '#EXT-X-DISCONTINUITY') {

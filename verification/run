@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+verify_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_dir=$(CDPATH= cd -- "$verify_dir/.." && pwd)
+
+if ! command -v node >/dev/null 2>&1; then
+  printf '%s\n' 'ERROR: Node.js is required.' >&2
+  exit 127
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  printf '%s\n' 'ERROR: npm is required.' >&2
+  exit 127
+fi
+
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+(
+  cd "$verify_dir"
+  npm ci --no-audit --no-fund --ignore-scripts
+)
+exec node "$verify_dir/src/main.mjs" --root "$repo_dir" "$@"

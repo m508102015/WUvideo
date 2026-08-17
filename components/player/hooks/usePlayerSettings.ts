@@ -55,6 +55,27 @@ function getPlayerSettingsSnapshot(isPremium: boolean, mediaProxyEnabled: boolea
     };
 }
 
+function playerSettingsEqual(a: PlayerSettingsSnapshot, b: PlayerSettingsSnapshot): boolean {
+    return (
+        a.autoNextEpisode === b.autoNextEpisode &&
+        a.autoSkipIntro === b.autoSkipIntro &&
+        a.skipIntroSeconds === b.skipIntroSeconds &&
+        a.autoSkipOutro === b.autoSkipOutro &&
+        a.skipOutroSeconds === b.skipOutroSeconds &&
+        a.showModeIndicator === b.showModeIndicator &&
+        a.adFilter === b.adFilter &&
+        a.adFilterMode === b.adFilterMode &&
+        a.adKeywords === b.adKeywords &&
+        a.fullscreenType === b.fullscreenType &&
+        a.proxyMode === b.proxyMode &&
+        a.danmakuEnabled === b.danmakuEnabled &&
+        a.danmakuApiUrl === b.danmakuApiUrl &&
+        a.danmakuOpacity === b.danmakuOpacity &&
+        a.danmakuFontSize === b.danmakuFontSize &&
+        a.danmakuDisplayArea === b.danmakuDisplayArea
+    );
+}
+
 /**
  * Hook to access and update player settings from the settings store
  * Provides reactive updates when settings change
@@ -63,10 +84,12 @@ export function usePlayerSettings(isPremium: boolean = false) {
     const { mediaProxyEnabled } = useRuntimeFeatures();
     const [settings, setSettings] = useState(() => getPlayerSettingsSnapshot(isPremium, mediaProxyEnabled));
 
-    // Subscribe to settings changes
+    // Subscribe to settings changes. Reuse the previous snapshot when
+    // non-player fields change (e.g. episodeReverseOrder) so HLS is not rebuilt.
     useEffect(() => {
         const syncSettings = () => {
-            setSettings(getPlayerSettingsSnapshot(isPremium, mediaProxyEnabled));
+            const next = getPlayerSettingsSnapshot(isPremium, mediaProxyEnabled);
+            setSettings((prev) => (playerSettingsEqual(prev, next) ? prev : next));
         };
 
         const modeStore = isPremium ? premiumModeSettingsStore : settingsStore;

@@ -2,18 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { profiledKey } from '@/lib/utils/profile-storage';
+import {
+  clampFloatingButtonPosition,
+  getDefaultFloatingButtonPosition,
+  getFloatingButtonRatios,
+  getPositionFromFloatingButtonRatios,
+  type FloatingAnchor,
+  type FloatingButtonPosition,
+  type FloatingButtonRatios,
+  type FloatingButtonViewport,
+} from '@/lib/utils/floating-button-position';
 
-type FloatingAnchor = 'left' | 'right';
-
-interface FloatingButtonPosition {
-  x: number;
-  y: number;
+interface StoredFloatingPosition extends FloatingButtonRatios {
+  /** Version 2 ratios are measured within the draggable area, not the viewport. */
+  version?: 2;
 }
 
-interface StoredFloatingPosition {
-  xRatio: number;
-  yRatio: number;
-}
+const CURRENT_STORAGE_VERSION = 2;
 
 interface UseFloatingButtonPositionOptions {
   storageKey: string;
@@ -45,10 +50,6 @@ const INITIAL_DRAG_STATE: DragState = {
   offsetY: 0,
 };
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 export function useFloatingButtonPosition({
   storageKey,
   defaultAnchor,
@@ -59,32 +60,44 @@ export function useFloatingButtonPosition({
   const [position, setPosition] = useState<FloatingButtonPosition | null>(null);
   const dragStateRef = useRef<DragState>(INITIAL_DRAG_STATE);
   const positionRef = useRef<FloatingButtonPosition | null>(null);
+  const customRatiosRef = useRef<FloatingButtonRatios | null>(null);
+  const pointerUpHandlerRef = useRef<(event: PointerEvent) => void>(() => undefined);
   const suppressClickRef = useRef(false);
 
   const clampPosition = useCallback((x: number, y: number, width: number, height: number) => ({
-    x: clamp(x, margin, Math.max(margin, width - buttonSize - margin)),
-    y: clamp(y, margin, Math.max(margin, height - buttonSize - margin)),
+    ...clampFloatingButtonPosition(
+      { x, y },
+      { width, height },
+      buttonSize,
+      margin,
+    ),
   }), [buttonSize, margin]);
 
   const getDefaultPosition = useCallback((width: number, height: number) => {
-    const x = defaultAnchor === 'left'
-      ? margin
-      : Math.max(margin, width - buttonSize - margin);
-    const centeredY = height * defaultYRatio - buttonSize / 2;
-
-    return clampPosition(x, centeredY, width, height);
-  }, [buttonSize, clampPosition, defaultAnchor, defaultYRatio, margin]);
+    return getDefaultFloatingButtonPosition(
+      { width, height },
+      defaultAnchor,
+      defaultYRatio,
+      buttonSize,
+      margin,
+    );
+  }, [buttonSize, defaultAnchor, defaultYRatio, margin]);
 
   const persistPosition = useCallback((nextPosition: FloatingButtonPosition) => {
     if (typeof window === 'undefined') return;
 
+    const viewport: FloatingButtonViewport = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+    const ratios = getFloatingButtonRatios(nextPosition, viewport, buttonSize, margin);
     const payload: StoredFloatingPosition = {
-      xRatio: nextPosition.x / window.innerWidth,
-      yRatio: nextPosition.y / window.innerHeight,
+      version: CURRENT_STORAGE_VERSION,
+      ...ratios,
     };
 
     localStorage.setItem(profiledKey(storageKey), JSON.stringify(payload));
-  }, [storageKey]);
+  }, [buttonSize, margin, storageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -93,6 +106,7 @@ export function useFloatingButtonPosition({
       const width = window.innerWidth;
       const height = window.innerHeight;
       const fallbackPosition = getDefaultPosition(width, height);
+      customRatiosRef.current = null;
 
       try {
         const raw = localStorage.getItem(profiledKey(storageKey));
@@ -102,20 +116,30 @@ export function useFloatingButtonPosition({
           return;
         }
 
-        const parsed = JSON.parse(raw) as Partial<StoredFloatingPosition>;
-        if (typeof parsed.xRatio !== 'number' || typeof parsed.yRatio !== 'number') {
+        const parsed = JSON.parse(raw) as Partial<StoredFloatingPosition> & { version?: number };
+        if (
+          typeof parsed.xRatio !== 'number' ||
+          !Number.isFinite(parsed.xRatio) ||
+          typeof parsed.yRatio !== 'number' ||
+          !Number.isFinite(parsed.yRatio) ||
+          (parsed.version !== undefined && parsed.version !== CURRENT_STORAGE_VERSION)
+        ) {
           positionRef.current = fallbackPosition;
           setPosition(fallbackPosition);
           return;
         }
 
-        const nextPosition = clampPosition(
-          parsed.xRatio * width,
-          parsed.yRatio * height,
-          width,
-          height
-        );
+        const viewport = { width, height };
+        const nextPosition = parsed.version === CURRENT_STORAGE_VERSION
+          ? getPositionFromFloatingButtonRatios(
+            { xRatio: parsed.xRatio, yRatio: parsed.yRatio },
+            viewport,
+            buttonSize,
+            margin,
+          )
+          : clampPosition(parsed.xRatio * width, parsed.yRatio * height, width, height);
 
+        customRatiosRef.current = getFloatingButtonRatios(nextPosition, viewport, buttonSize, margin);
         positionRef.current = nextPosition;
         setPosition(nextPosition);
       } catch {
@@ -129,9 +153,14 @@ export function useFloatingButtonPosition({
     const handleResize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const fallbackPosition = getDefaultPosition(width, height);
-      const basePosition = positionRef.current || fallbackPosition;
-      const nextPosition = clampPosition(basePosition.x, basePosition.y, width, height);
+      const nextPosition = customRatiosRef.current
+        ? getPositionFromFloatingButtonRatios(
+          customRatiosRef.current,
+          { width, height },
+          buttonSize,
+          margin,
+        )
+        : getDefaultPosition(width, height);
 
       positionRef.current = nextPosition;
       setPosition(nextPosition);
@@ -139,7 +168,7 @@ export function useFloatingButtonPosition({
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [clampPosition, getDefaultPosition, storageKey]);
+  }, [buttonSize, clampPosition, getDefaultPosition, margin, storageKey]);
 
   const finishDrag = useCallback(() => {
     const dragState = dragStateRef.current;
@@ -180,9 +209,15 @@ export function useFloatingButtonPosition({
       window.innerHeight
     );
 
+    customRatiosRef.current = getFloatingButtonRatios(
+      nextPosition,
+      { width: window.innerWidth, height: window.innerHeight },
+      buttonSize,
+      margin,
+    );
     positionRef.current = nextPosition;
     setPosition(nextPosition);
-  }, [clampPosition]);
+  }, [buttonSize, clampPosition, margin]);
 
   const handlePointerUp = useCallback((event: PointerEvent) => {
     const dragState = dragStateRef.current;
@@ -193,9 +228,13 @@ export function useFloatingButtonPosition({
 
     finishDrag();
     window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', handlePointerUp);
-    window.removeEventListener('pointercancel', handlePointerUp);
+    window.removeEventListener('pointerup', pointerUpHandlerRef.current);
+    window.removeEventListener('pointercancel', pointerUpHandlerRef.current);
   }, [finishDrag, handlePointerMove]);
+
+  useEffect(() => {
+    pointerUpHandlerRef.current = handlePointerUp;
+  }, [handlePointerUp]);
 
   useEffect(() => {
     return () => {

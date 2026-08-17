@@ -8,8 +8,8 @@ import test from 'node:test';
 
 const execFileAsync = promisify(execFile);
 
-test('client asset transpilation removes logical assignment syntax for WebView 83', async () => {
-  const tempDir = await mkdtemp(path.join(tmpdir(), 'kvideo-webview83-'));
+test('client asset transpilation removes modern syntax for Android 9 WebView (Chrome 69)', async () => {
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'kvideo-webview69-'));
   const assetPath = path.join(tempDir, 'chunk.js');
 
   await writeFile(
@@ -18,10 +18,11 @@ test('client asset transpilation removes logical assignment syntax for WebView 8
       'let count = null;',
       'let fallback = 0;',
       'let enabled = true;',
+      'const nested = globalThis.__input?.value ?? "fallback";',
       'count ??= 1;',
       'fallback ||= 2;',
       'enabled &&= false;',
-      'globalThis.__kvideoWebView83Result = { count, fallback, enabled };',
+      'globalThis.__kvideoWebView69Result = { count, fallback, enabled, nested };',
     ].join('\n')
   );
 
@@ -35,4 +36,9 @@ test('client asset transpilation removes logical assignment syntax for WebView 8
   assert.equal(output.includes('??='), false);
   assert.equal(output.includes('||='), false);
   assert.equal(output.includes('&&='), false);
+  // chrome83 still emits bare `??` in app code; chrome69 must rewrite it.
+  // (Polyfill feature-detect regexes like `/()??/` may still contain the characters.)
+  assert.equal(output.includes('nested'), true);
+  assert.equal(/\?\?\s*"fallback"|\?\?\s*'fallback'/.test(output), false);
+  assert.equal(output.includes('?.'), false);
 });

@@ -406,7 +406,7 @@ function PlayerContent() {
       {/* Glass Navbar */}
       <PlayerNavbar isPremium={isPremium} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-2">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-[var(--accent-color)] border-t-transparent mb-4"></div>
@@ -419,31 +419,34 @@ function PlayerContent() {
             onRetry={fetchVideoDetails}
           />
         ) : (
-          <div className={`grid gap-6 lg:grid-cols-3 ${playerGridClass}`}>
+          <div className="space-y-4">
+            {/* Viewport controls span full content width so player + sidebar tops align */}
+            <div className="hidden lg:flex items-center justify-between gap-4 rounded-[var(--radius-2xl)] border border-[var(--glass-border)] bg-[var(--glass-bg)] p-4">
+              <div>
+                <div className="text-sm font-semibold text-[var(--text-color)]">
+                  播放窗口大小
+                </div>
+                <div className="text-xs text-[var(--text-color-secondary)] mt-1">
+                  右侧源列表或选集折叠后，会自动提升到更宽的布局
+                  {effectivePlayerViewportMode !== playerViewportMode && `，当前已自动切到${PLAYER_VIEWPORT_MODE_LABELS[effectivePlayerViewportMode]}`}
+                </div>
+              </div>
+              <SegmentedControl<PlayerViewportMode>
+                options={[
+                  { label: '标准', value: 'standard' },
+                  { label: '宽屏', value: 'wide' },
+                  { label: '影院', value: 'cinema' },
+                ]}
+                value={playerViewportMode}
+                onChange={setPlayerViewportMode}
+                className="min-w-[240px]"
+              />
+            </div>
+
+          <div className={`grid gap-6 lg:grid-cols-3 lg:items-start ${playerGridClass}`}>
             {/* Video Player Section */}
             <div className="lg:col-span-2 xl:col-span-1 space-y-6">
-              <div className="hidden lg:flex items-center justify-between gap-4 rounded-[var(--radius-2xl)] border border-[var(--glass-border)] bg-[var(--glass-bg)] p-4">
-                <div>
-                  <div className="text-sm font-semibold text-[var(--text-color)]">
-                    播放窗口大小
-                  </div>
-                  <div className="text-xs text-[var(--text-color-secondary)] mt-1">
-                    右侧源列表或选集折叠后，会自动提升到更宽的布局
-                    {effectivePlayerViewportMode !== playerViewportMode && `，当前已自动切到${PLAYER_VIEWPORT_MODE_LABELS[effectivePlayerViewportMode]}`}
-                  </div>
-                </div>
-                <SegmentedControl<PlayerViewportMode>
-                  options={[
-                    { label: '标准', value: 'standard' },
-                    { label: '宽屏', value: 'wide' },
-                    { label: '影院', value: 'cinema' },
-                  ]}
-                  value={playerViewportMode}
-                  onChange={setPlayerViewportMode}
-                  className="min-w-[240px]"
-                />
-              </div>
-              <div className="-mx-4 sm:mx-0">
+              <div className="sm:mx-0">
                 <VideoPlayer
                   playUrl={playUrl}
                   videoId={videoId || undefined}
@@ -490,9 +493,9 @@ function PlayerContent() {
               )}
             </div>
 
-            {/* Sidebar with sticky wrapper */}
+            {/* Sidebar with sticky wrapper — top offset matches navbar height for alignment */}
             <div className="lg:col-span-1">
-              <div className="lg:sticky lg:top-32 space-y-6">
+              <div className="lg:sticky lg:top-28 space-y-6">
                 {/* Mobile Tabs */}
                 <SegmentedControl
                   options={[
@@ -558,6 +561,7 @@ function PlayerContent() {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         )}
       </main>

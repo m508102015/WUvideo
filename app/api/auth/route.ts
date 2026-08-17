@@ -3,13 +3,24 @@ import {
   authenticateLogin,
   createLoginResponse,
   getPublicAuthConfig,
+  ManagedAuthStorageError,
   validatePremiumAccess,
 } from '@/lib/server/auth';
 
 export const runtime = 'edge';
 
 export async function GET() {
-  return NextResponse.json(await getPublicAuthConfig());
+  try {
+    return NextResponse.json(await getPublicAuthConfig());
+  } catch (error) {
+    if (error instanceof ManagedAuthStorageError) {
+      return NextResponse.json(
+        { error: 'Managed authentication storage is unavailable' },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +43,13 @@ export async function POST(request: NextRequest) {
     }
 
     return createLoginResponse(session, request);
-  } catch {
+  } catch (error) {
+    if (error instanceof ManagedAuthStorageError) {
+      return NextResponse.json(
+        { valid: false, message: 'Managed authentication storage is unavailable' },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ valid: false, message: 'Invalid request' }, { status: 400 });
   }
 }
