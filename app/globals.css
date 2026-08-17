@@ -27,3 +27,25 @@
 .no-spinner {
   -moz-appearance: textfield;
 }
+/* =========================================
+   修復 iOS 系統輸入框放大與鍵盤無法喚出的問題
+   ========================================= */
+
+/* 1. 強制所有輸入框在手機上至少為 16px，防止 iOS 自動放大畫面 */
+@media screen and (max-width: 768px) {
+  input, 
+  select, 
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* 2. 強制解除 iOS 對輸入框的「禁止選取」限制，讓鍵盤能正常彈出 */
+input, 
+textarea, 
+[contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  /* 確保可以被點擊 */
+  pointer-events: auto !important; 
+}
