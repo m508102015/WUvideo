@@ -260,8 +260,14 @@ export function DesktopMoreMenu({
             }}
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
-            // 🍎 關鍵修改：只保留最基本的點擊阻擋，移除所有會干擾輸入框的 onTouch / onPointer
+            // 🍎 終極防護牆：阻斷所有事件冒泡，防止觸控訊號漏給底層影片播放器導致選單關閉
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
         >
             {/* Copy Link Options */}
             {isProxied ? (
@@ -435,10 +441,11 @@ export function DesktopMoreMenu({
                             value={Math.round(danmakuOpacity * 100)}
                             onChange={(e) => setDanmakuOpacity(parseInt(e.target.value) / 100)}
                             className={`w-full accent-[var(--accent-color)] ${isRotated ? 'h-1' : 'h-1.5'}`}
-                            // 🍎 保持滑桿正常滑動的防護，避免畫面被拖走
                             onClick={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}
                             onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                         />
                     </div>
 
@@ -531,7 +538,7 @@ export function DesktopMoreMenu({
                 {autoSkipIntro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>时长:</span>
-                        {/* 🍎 關鍵修改：拔除所有的程式干預，還原最乾淨的 HTML 原生輸入框 */}
+                        {/* 🍎 為輸入框也補上獨立的防穿透，確保點擊時不會漏給外層 */}
                         <input
                             type="text"
                             inputMode="numeric"
@@ -542,6 +549,12 @@ export function DesktopMoreMenu({
                                 setSkipIntroSeconds(val ? parseInt(val) : 0);
                             }}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
                             style={{ pointerEvents: 'auto', userSelect: 'text', WebkitUserSelect: 'text' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
@@ -574,7 +587,7 @@ export function DesktopMoreMenu({
                 {autoSkipOutro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>剩余:</span>
-                        {/* 🍎 關鍵修改：拔除所有的程式干預，還原最乾淨的 HTML 原生輸入框 */}
+                        {/* 🍎 為輸入框也補上獨立的防穿透，確保點擊時不會漏給外層 */}
                         <input
                             type="text"
                             inputMode="numeric"
@@ -585,6 +598,12 @@ export function DesktopMoreMenu({
                                 setSkipOutroSeconds(val ? parseInt(val) : 0);
                             }}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onPointerUp={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
                             style={{ pointerEvents: 'auto', userSelect: 'text', WebkitUserSelect: 'text' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
