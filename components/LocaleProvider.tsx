@@ -2,7 +2,7 @@
 
 /**
  * LocaleProvider - Converts the entire UI between Simplified and Traditional Chinese
- * using opencc-js DOM-level conversion with a custom MutationObserver.
+ * using opencc-js DOM-level conversion with an optimized MutationObserver.
  */
 
 import { useEffect, useState } from 'react';
@@ -27,7 +27,6 @@ export function LocaleProvider() {
   // Apply DOM-level conversion when locale changes
   useEffect(() => {
     if (locale !== 'zh-TW') {
-      // Reset to original (Simplified) by reloading lang attribute
       document.documentElement.lang = 'zh-CN';
       return;
     }
@@ -40,31 +39,32 @@ export function LocaleProvider() {
         const OpenCC = await import('opencc-js');
         const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
 
-        // 1. 建立一個包裝函數來重複執行轉換
-        const convertDOM = () => {
-          OpenCC.HTMLConverter(converter, document.documentElement, 'zh-CN', 'zh-TW');
-        };
-
-        // 立即執行第一次全域轉換
-        convertDOM(); 
+        // 1. 強制掃描整個 body，不限制 lang 屬性
+        OpenCC.HTMLConverter(converter, document.body);
         document.documentElement.lang = 'zh-TW';
 
-        // 2. 手動建立 MutationObserver 攔截 React 的動態渲染
-        observer = new MutationObserver(() => {
-          // 安全鎖：轉換前先暫停監聽，防止 OpenCC 改變文字時觸發 MutationObserver 導致無限迴圈
-          observer?.disconnect();
+        // 2. 優化版的 MutationObserver：只針對「有變動的節點」進行轉換，避免效能卡頓
+        let isConverting = false;
+        observer = new MutationObserver((mutations) => {
+          if (isConverting) return;
+          isConverting = true;
           
-          convertDOM(); // 執行繁體轉換
-          
-          // 轉換完成後，重新掛載監聽器
-          observer?.observe(document.body, { 
-            childList: true, 
-            subtree: true, 
-            characterData: true 
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'characterData') {
+              const target = mutation.target.parentNode || mutation.target;
+              OpenCC.HTMLConverter(converter, target as Node);
+            } else if (mutation.type === 'childList') {
+              mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+                  OpenCC.HTMLConverter(converter, node);
+                }
+              });
+            }
           });
+          
+          isConverting = false;
         });
 
-        // 首次啟動監聽
         observer.observe(document.body, { 
           childList: true, 
           subtree: true, 
@@ -73,9 +73,8 @@ export function LocaleProvider() {
 
         cleanup = () => {
           observer?.disconnect();
-          // Reverse conversion on cleanup
           const reverseConverter = OpenCC.Converter({ from: 'tw', to: 'cn' });
-          OpenCC.HTMLConverter(reverseConverter, document.documentElement, 'zh-TW', 'zh-CN');
+          OpenCC.HTMLConverter(reverseConverter, document.body);
           document.documentElement.lang = 'zh-CN';
         };
       } catch (err) {
