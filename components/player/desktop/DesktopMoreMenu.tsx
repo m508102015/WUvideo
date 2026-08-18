@@ -239,8 +239,6 @@ export function DesktopMoreMenu({
         }
     }, [containerRef, isRotated, isFullscreen]);
 
-
-
     // Auto-close menu on scroll
     React.useEffect(() => {
         if (!showMoreMenu) return;
@@ -302,6 +300,7 @@ export function DesktopMoreMenu({
             onMouseLeave={onMouseLeave}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()} // <-- 新增防護
         >
             {/* Copy Link Options */}
             {isProxied ? (
@@ -481,6 +480,10 @@ export function DesktopMoreMenu({
                             onChange={(e) => setDanmakuOpacity(parseInt(e.target.value) / 100)}
                             className={`w-full accent-[var(--accent-color)] ${isRotated ? 'h-1' : 'h-1.5'}`}
                             onClick={(e) => e.stopPropagation()}
+                            // 👇 新增滑桿防護
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
                         />
                     </div>
 
@@ -585,6 +588,11 @@ export function DesktopMoreMenu({
                             onChange={(e) => setSkipIntroSeconds(parseInt(e.target.value) || 0)}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
                             onClick={(e) => e.stopPropagation()}
+                            // 👇 新增輸入防護
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => { e.stopPropagation(); e.currentTarget.focus(); }}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
                     </div>
@@ -625,6 +633,11 @@ export function DesktopMoreMenu({
                             onChange={(e) => setSkipOutroSeconds(parseInt(e.target.value) || 0)}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
                             onClick={(e) => e.stopPropagation()}
+                            // 👇 新增輸入防護
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => { e.stopPropagation(); e.currentTarget.focus(); }}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
                     </div>
@@ -647,7 +660,6 @@ export function DesktopMoreMenu({
                 <Icons.MoreHorizontal className="text-white/80 group-hover:text-white w-[20px] h-[20px] sm:w-[24px] sm:h-[24px]" />
             </button>
 
-            {/* More Menu Dropdown (Portal) */}
             {/* More Menu Dropdown (Portal) */}
             {showMoreMenu && typeof document !== 'undefined' && createPortal(MenuContent, ((isRotated || isFullscreen) && containerRef.current) ? containerRef.current : document.body)}
         </div>
