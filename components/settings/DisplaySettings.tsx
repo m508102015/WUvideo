@@ -88,7 +88,7 @@ export function DisplaySettings({
     onLocaleChange,
     onBlockedCategoriesChange,
 }: DisplaySettingsProps) {
-    const [newCategory, useState] = useState('');
+    const [newCategory, setNewCategory] = useState('');
 
     // 取得當前語言的字典，若無匹配則預設為簡體中文
     const t = translations[locale] || translations['zh-CN'];
