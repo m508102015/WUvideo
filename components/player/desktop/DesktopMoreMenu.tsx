@@ -85,13 +85,11 @@ export function DesktopMoreMenu({
 
     React.useEffect(() => {
         const updateFullscreen = () => {
-            // Check both native fullscreen and window fullscreen (CSS-based)
             const nativeFullscreen = !!document.fullscreenElement;
             const windowFullscreen = containerRef.current?.closest('.is-web-fullscreen') !== null;
             setIsFullscreen(nativeFullscreen || windowFullscreen);
         };
         document.addEventListener('fullscreenchange', updateFullscreen);
-        // Also check periodically for window fullscreen changes (CSS class based)
         const interval = setInterval(updateFullscreen, 500);
         updateFullscreen();
         return () => {
@@ -100,14 +98,10 @@ export function DesktopMoreMenu({
         };
     }, [containerRef]);
 
-    // Dual Positioning Strategy
     const calculateMenuPosition = React.useCallback(() => {
         if (!buttonRef.current || !containerRef.current) return;
 
         if (!isRotated && !isFullscreen) {
-            // Normal Mode: Non-rotated, non-fullscreen
-            // Use Viewport Coordinates but position relative to button
-            // And use Body Portal to escape container clipping
             const buttonRect = buttonRef.current.getBoundingClientRect();
             const viewportHeight = window.innerHeight;
             const viewportWidth = window.innerWidth;
@@ -123,15 +117,11 @@ export function DesktopMoreMenu({
                 ? Math.min(spaceAbove, actualMenuHeight)
                 : Math.min(spaceBelow, viewportHeight * 0.7);
 
-            // Smart Horizontal Alignment:
-            // If button is on the left half of screen, align menu's left edge to button's left.
-            // If button is on the right half of screen, align menu's right edge to button's right.
             const isLeftHalf = buttonRect.left < viewportWidth / 2;
             const align = isLeftHalf ? 'left' : 'right';
 
             let left = isLeftHalf ? buttonRect.left : buttonRect.right;
 
-            // Boundary clamping
             if (isLeftHalf) {
                 left = Math.max(left, 10);
             } else {
@@ -148,8 +138,6 @@ export function DesktopMoreMenu({
                 align: align
             });
         } else if (isFullscreen && !isRotated) {
-            // Fullscreen Mode (not rotated): Use container-relative coordinates
-            // Portal goes to containerRef to stay visible within fullscreen element
             let top = 0;
             let left = 0;
             let el: HTMLElement | null = buttonRef.current;
@@ -189,7 +177,6 @@ export function DesktopMoreMenu({
                 align: align
             });
         } else {
-            // Rotated Mode: Use Container Coordinates (offset loop) and Portal to Container
             let top = 0;
             let left = 0;
             let el: HTMLElement | null = buttonRef.current;
@@ -201,17 +188,9 @@ export function DesktopMoreMenu({
             }
 
             const buttonWidth = buttonRef.current.offsetWidth;
-            const buttonHeight = buttonRef.current.offsetHeight;
             const containerWidth = containerRef.current.offsetWidth;
             const containerHeight = containerRef.current.offsetHeight;
 
-            // In rotated mode (90deg CW):
-            // Landscape Vertical Axis = Container X Axis (left in code)
-            // Landscape Horizontal Axis = Container Y Axis (top in code)
-
-            // Visual available space in landscape:
-            // Top of landscape is Container Left (x=0)
-            // Bottom of landscape is Container Right (x=H_cont)
             const spaceToLandscapeTop = left;
             const spaceToLandscapeBottom = containerWidth - (left + buttonWidth);
 
@@ -223,15 +202,12 @@ export function DesktopMoreMenu({
                 ? Math.min(spaceToLandscapeTop - 10, actualMenuHeight)
                 : Math.min(spaceToLandscapeBottom - 10, containerHeight * 0.7);
 
-            // Horizontal alignment (Landscape):
-            // Landscape Right = Container Top (y=0)
-            // Landscape Left = Container Bottom (y=H_cont)
             const isLandscapeRightHalf = top < containerHeight / 2;
             const align = isLandscapeRightHalf ? 'left' : 'right';
 
             setMenuPosition({
-                top: top, // Fixed horizontal container coordinate
-                left: left, // Fixed vertical container coordinate
+                top: top, 
+                left: left, 
                 maxHeight: `${maxHeight}px`,
                 openUpward: openUpward,
                 align: align
@@ -239,7 +215,6 @@ export function DesktopMoreMenu({
         }
     }, [containerRef, isRotated, isFullscreen]);
 
-    // Auto-close menu on scroll
     React.useEffect(() => {
         if (!showMoreMenu) return;
         const handleScroll = () => {
@@ -272,11 +247,6 @@ export function DesktopMoreMenu({
             className={`absolute z-[2147483647] bg-[var(--glass-bg)] backdrop-blur-[25px] saturate-[180%] rounded-[var(--radius-2xl)] border border-[var(--glass-border)] shadow-[var(--shadow-md)] p-1.5 sm:p-2 w-fit ${isRotated ? 'min-w-[170px]' : 'min-w-[200px] sm:min-w-[240px]'} animate-in fade-in zoom-in-95 duration-200 overflow-y-auto`}
             style={{
                 ...(isRotated ? {
-                    // In Rotated Mode:
-                    // menuPosition.left is Container X (Landscape Vertical)
-                    // menuPosition.top is Container Y (Landscape Horizontal)
-
-                    // Vertical Anchoring (Above/Below Button)
                     ...(menuPosition.openUpward ? {
                         right: `calc(100% - ${menuPosition.left}px + 10px)`,
                         left: 'auto'
@@ -284,12 +254,9 @@ export function DesktopMoreMenu({
                         left: `${menuPosition.left + buttonRef.current?.offsetWidth! + 10}px`,
                         right: 'auto'
                     }),
-
-                    // Horizontal Anchoring (Left/Right to Button)
                     top: `${menuPosition.top}px`,
                     transform: menuPosition.align === 'right' ? 'translateY(-100%)' : 'none',
                 } : {
-                    // Normal Mode
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,
                     transform: menuPosition.align === 'right' ? 'translateX(-100%)' : 'none',
@@ -300,7 +267,7 @@ export function DesktopMoreMenu({
             onMouseLeave={onMouseLeave}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()} // <-- 新增防護
+            onTouchEnd={(e) => e.stopPropagation()} 
         >
             {/* Copy Link Options */}
             {isProxied ? (
@@ -330,7 +297,6 @@ export function DesktopMoreMenu({
                 </button>
             )}
 
-            {/* Divider */}
             <div className="h-px bg-[var(--glass-border)] my-1.5 sm:my-2" />
 
             {/* Fullscreen Mode Selector */}
@@ -370,7 +336,6 @@ export function DesktopMoreMenu({
                 </button>
             </div>
 
-            {/* Show Mode Indicator Switch */}
             <div className={`${isRotated ? 'px-2 py-1.5' : 'px-3 py-2 sm:px-4 sm:py-2.5'} flex items-center justify-between gap-4`}>
                 <div className={`flex items-center gap-2 text-[var(--text-color)] ${isRotated ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
                     <Icons.Zap size={isRotated ? 14 : 16} className="sm:w-[18px] sm:h-[18px]" />
@@ -398,7 +363,6 @@ export function DesktopMoreMenu({
                     <Icons.ShieldAlert size={16} className="sm:w-[18px] sm:h-[18px]" />
                     <span>广告过滤</span>
                 </div>
-                {/* Custom Ad Filter Mode Selector */}
                 <div className="relative">
                     <button
                         onClick={() => setAdFilterOpen(!isAdFilterOpen)}
@@ -432,7 +396,6 @@ export function DesktopMoreMenu({
                 </div>
             </div>
 
-            {/* Divider */}
             <div className="h-px bg-[var(--glass-border)] my-1.5 sm:my-2" />
 
             {/* Danmaku Toggle */}
@@ -463,10 +426,9 @@ export function DesktopMoreMenu({
                 </button>
             </div>
 
-            {/* Danmaku Sub-Settings (shown when enabled and configured) */}
+            {/* Danmaku Sub-Settings */}
             {danmakuEnabled && danmakuApiUrl && (
                 <div className={`${isRotated ? 'px-2 pb-1.5' : 'px-3 pb-2 sm:px-4 sm:pb-2.5'} space-y-2.5`}>
-                    {/* Opacity Slider */}
                     <div className={`${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <div className={`flex items-center justify-between mb-1 ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'} text-[var(--text-color-secondary)]`}>
                             <span>透明度</span>
@@ -480,14 +442,12 @@ export function DesktopMoreMenu({
                             onChange={(e) => setDanmakuOpacity(parseInt(e.target.value) / 100)}
                             className={`w-full accent-[var(--accent-color)] ${isRotated ? 'h-1' : 'h-1.5'}`}
                             onClick={(e) => e.stopPropagation()}
-                            // 👇 新增滑桿防護
                             onTouchStart={(e) => e.stopPropagation()}
                             onTouchMove={(e) => e.stopPropagation()}
                             onTouchEnd={(e) => e.stopPropagation()}
                         />
                     </div>
 
-                    {/* Font Size Buttons */}
                     <div className={`${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <div className={`mb-1 ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'} text-[var(--text-color-secondary)]`}>字号</div>
                         <div className="flex gap-1 flex-wrap">
@@ -506,7 +466,6 @@ export function DesktopMoreMenu({
                         </div>
                     </div>
 
-                    {/* Display Area Buttons */}
                     <div className={`${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <div className={`mb-1 ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'} text-[var(--text-color-secondary)]`}>显示区域</div>
                         <div className="flex gap-1 flex-wrap">
@@ -532,7 +491,6 @@ export function DesktopMoreMenu({
                 </div>
             )}
 
-            {/* Auto Next Episode Switch */}
             <div className={`${isRotated ? 'px-2 py-1.5' : 'px-3 py-2 sm:px-4 sm:py-2.5'} flex items-center justify-between gap-4`}>
                 <div className={`flex items-center gap-2 text-[var(--text-color)] ${isRotated ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
                     <Icons.SkipForward size={isRotated ? 14 : 16} className="sm:w-[18px] sm:h-[18px]" />
@@ -554,7 +512,7 @@ export function DesktopMoreMenu({
                 </button>
             </div>
 
-            {/* Skip Intro Switch */}
+            {/* Skip Intro Switch & Input */}
             <div className={`${isRotated ? 'px-2 py-1.5' : 'px-3 py-2 sm:px-4 sm:py-2.5'}`}>
                 <div className="flex items-center justify-between gap-4">
                     <div className={`flex items-center gap-2 text-[var(--text-color)] ${isRotated ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
@@ -576,21 +534,24 @@ export function DesktopMoreMenu({
                         />
                     </button>
                 </div>
-                {/* Expandable Input */}
                 {autoSkipIntro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>时长:</span>
+                        {/* 🍎 關鍵修改：移除了手動 Focus，加上 inputMode="numeric" 與 pattern="[0-9]*" 喚出數字小鍵盤 */}
                         <input
                             type="number"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             min="0"
                             max="600"
                             value={skipIntroSeconds}
                             onChange={(e) => setSkipIntroSeconds(parseInt(e.target.value) || 0)}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
                             onClick={(e) => e.stopPropagation()}
-                            // 👇 新增輸入防護
                             onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => { e.stopPropagation(); e.currentTarget.focus(); }}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
                             style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
                         />
@@ -599,7 +560,7 @@ export function DesktopMoreMenu({
                 )}
             </div>
 
-            {/* Skip Outro Switch */}
+            {/* Skip Outro Switch & Input */}
             <div className={`${isRotated ? 'px-2 py-1.5' : 'px-3 py-2 sm:px-4 sm:py-2.5'}`}>
                 <div className="flex items-center justify-between gap-4">
                     <div className={`flex items-center gap-2 text-[var(--text-color)] ${isRotated ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
@@ -621,21 +582,24 @@ export function DesktopMoreMenu({
                         />
                     </button>
                 </div>
-                {/* Expandable Input */}
                 {autoSkipOutro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>剩余:</span>
+                        {/* 🍎 關鍵修改：移除了手動 Focus，加上 inputMode="numeric" 與 pattern="[0-9]*" 喚出數字小鍵盤 */}
                         <input
                             type="number"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             min="0"
                             max="600"
                             value={skipOutroSeconds}
                             onChange={(e) => setSkipOutroSeconds(parseInt(e.target.value) || 0)}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
                             onClick={(e) => e.stopPropagation()}
-                            // 👇 新增輸入防護
                             onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => { e.stopPropagation(); e.currentTarget.focus(); }}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
                             style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
                         />
@@ -660,7 +624,6 @@ export function DesktopMoreMenu({
                 <Icons.MoreHorizontal className="text-white/80 group-hover:text-white w-[20px] h-[20px] sm:w-[24px] sm:h-[24px]" />
             </button>
 
-            {/* More Menu Dropdown (Portal) */}
             {showMoreMenu && typeof document !== 'undefined' && createPortal(MenuContent, ((isRotated || isFullscreen) && containerRef.current) ? containerRef.current : document.body)}
         </div>
     );
