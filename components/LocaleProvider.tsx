@@ -2,7 +2,7 @@
 
 /**
  * LocaleProvider - Converts the entire UI between Simplified and Traditional Chinese
- * using opencc-js DOM-level conversion with an optimized MutationObserver.
+ * using opencc-js DOM-level conversion with a custom recursive observer.
  */
 
 import { useEffect, useState } from 'react';
@@ -39,29 +39,44 @@ export function LocaleProvider() {
         const OpenCC = await import('opencc-js');
         const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
 
-        // 1. 強制掃描整個 body，不限制 lang 屬性
-        OpenCC.HTMLConverter(converter, document.body);
+        // 🍎 關鍵修改：自己寫一個遞迴文字轉換器，徹底避開 HTMLConverter 的 4 參數限制與 lang 檢查 Bug
+        const convertTextNodes = (node: Node, conv: (text: string) => string) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            if (node.nodeValue && node.nodeValue.trim()) {
+              const converted = conv(node.nodeValue);
+              if (converted !== node.nodeValue) {
+                node.nodeValue = converted;
+              }
+            }
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as Element;
+            if (el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE') {
+              el.childNodes.forEach(child => convertTextNodes(child, conv));
+            }
+          }
+        };
+
+        // 1. 立即執行第一次全域轉換
+        convertTextNodes(document.body, converter);
         document.documentElement.lang = 'zh-TW';
 
-        // 2. 優化版的 MutationObserver：只針對「有變動的節點」進行轉換，避免效能卡頓
+        // 2. 建立 MutationObserver 攔截動態渲染
         let isConverting = false;
         observer = new MutationObserver((mutations) => {
           if (isConverting) return;
           isConverting = true;
-          
+
           mutations.forEach((mutation) => {
             if (mutation.type === 'characterData') {
               const target = mutation.target.parentNode || mutation.target;
-              OpenCC.HTMLConverter(converter, target as Node);
+              convertTextNodes(target as Node, converter);
             } else if (mutation.type === 'childList') {
               mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
-                  OpenCC.HTMLConverter(converter, node);
-                }
+                convertTextNodes(node, converter);
               });
             }
           });
-          
+
           isConverting = false;
         });
 
@@ -74,7 +89,7 @@ export function LocaleProvider() {
         cleanup = () => {
           observer?.disconnect();
           const reverseConverter = OpenCC.Converter({ from: 'tw', to: 'cn' });
-          OpenCC.HTMLConverter(reverseConverter, document.body);
+          convertTextNodes(document.body, reverseConverter);
           document.documentElement.lang = 'zh-CN';
         };
       } catch (err) {
