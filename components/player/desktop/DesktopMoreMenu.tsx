@@ -210,9 +210,14 @@ export function DesktopMoreMenu({
         }
     }, [containerRef, isRotated, isFullscreen]);
 
+    // 🍎 關鍵修復：阻擋 iOS 鍵盤彈出時的自動捲動觸發選單關閉
     React.useEffect(() => {
         if (!showMoreMenu) return;
         const handleScroll = () => {
+            // 如果焦點在 INPUT 元素上（代表準備打字/鍵盤彈出中），絕對不要關閉選單！
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                return;
+            }
             if (showMoreMenu) {
                 onToggleMoreMenu();
             }
@@ -260,14 +265,9 @@ export function DesktopMoreMenu({
             }}
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
-            // 🍎 終極防護牆：阻斷所有事件冒泡，防止觸控訊號漏給底層影片播放器導致選單關閉
+            // 阻擋點擊事件冒泡到影片
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchMove={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            onPointerUp={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
         >
             {/* Copy Link Options */}
             {isProxied ? (
@@ -442,9 +442,6 @@ export function DesktopMoreMenu({
                             onChange={(e) => setDanmakuOpacity(parseInt(e.target.value) / 100)}
                             className={`w-full accent-[var(--accent-color)] ${isRotated ? 'h-1' : 'h-1.5'}`}
                             onClick={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
                             onPointerDown={(e) => e.stopPropagation()}
                         />
                     </div>
@@ -538,7 +535,6 @@ export function DesktopMoreMenu({
                 {autoSkipIntro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>时长:</span>
-                        {/* 🍎 為輸入框也補上獨立的防穿透，確保點擊時不會漏給外層 */}
                         <input
                             type="text"
                             inputMode="numeric"
@@ -550,11 +546,7 @@ export function DesktopMoreMenu({
                             }}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
                             onClick={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
                             style={{ pointerEvents: 'auto', userSelect: 'text', WebkitUserSelect: 'text' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
@@ -587,7 +579,6 @@ export function DesktopMoreMenu({
                 {autoSkipOutro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>剩余:</span>
-                        {/* 🍎 為輸入框也補上獨立的防穿透，確保點擊時不會漏給外層 */}
                         <input
                             type="text"
                             inputMode="numeric"
@@ -599,11 +590,7 @@ export function DesktopMoreMenu({
                             }}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
                             onClick={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onPointerUp={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
                             style={{ pointerEvents: 'auto', userSelect: 'text', WebkitUserSelect: 'text' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
