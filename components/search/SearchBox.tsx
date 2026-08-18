@@ -14,7 +14,7 @@ interface SearchBoxProps {
     isPremium?: boolean;
 }
 
-export function SearchBox({ onSearch, onClear, initialQuery = '', placeholder = '搜索电影、电视剧、综艺...', isPremium = false }: SearchBoxProps) {
+export function SearchBox({ onSearch, onClear, initialQuery = '', placeholder = '搜尋電影、電視劇、綜藝...', isPremium = false }: SearchBoxProps) {
     const [query, setQuery] = useState(initialQuery);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -104,7 +104,7 @@ export function SearchBox({ onSearch, onClear, initialQuery = '', placeholder = 
                 >
                     <span className="flex items-center gap-2">
                         <Icons.Search size={20} />
-                        <span className="hidden sm:inline">搜索</span>
+                        <span className="hidden sm:inline">搜尋</span>
                     </span>
                 </Button>
             </div>
