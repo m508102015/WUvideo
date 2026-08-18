@@ -4,7 +4,6 @@ import React from 'react';
 import { Icons } from '@/components/ui/Icon';
 import { usePlayerSettings } from '../hooks/usePlayerSettings';
 import { settingsStore, AdFilterMode } from '@/lib/store/settings-store';
-
 import { createPortal } from 'react-dom';
 
 interface DesktopMoreMenuProps {
@@ -129,9 +128,7 @@ export function DesktopMoreMenu({
             }
 
             setMenuPosition({
-                top: openUpward
-                    ? buttonRect.top - 10
-                    : buttonRect.bottom + 10,
+                top: openUpward ? buttonRect.top - 10 : buttonRect.bottom + 10,
                 left: left,
                 maxHeight: `${maxHeight}px`,
                 openUpward: openUpward,
@@ -168,9 +165,7 @@ export function DesktopMoreMenu({
             const align = isLeftHalf ? 'left' : 'right';
 
             setMenuPosition({
-                top: openUpward
-                    ? top - 10
-                    : top + buttonHeight + 10,
+                top: openUpward ? top - 10 : top + buttonHeight + 10,
                 left: isLeftHalf ? left : left + buttonWidth,
                 maxHeight: `${maxHeight}px`,
                 openUpward: openUpward,
@@ -265,9 +260,9 @@ export function DesktopMoreMenu({
             }}
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
+            // 🍎 關鍵修改：只保留 onPointerDown 和 onClick 防穿透，讓 iOS 的 Click 事件能自然發生
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()} 
         >
             {/* Copy Link Options */}
             {isProxied ? (
@@ -441,10 +436,7 @@ export function DesktopMoreMenu({
                             value={Math.round(danmakuOpacity * 100)}
                             onChange={(e) => setDanmakuOpacity(parseInt(e.target.value) / 100)}
                             className={`w-full accent-[var(--accent-color)] ${isRotated ? 'h-1' : 'h-1.5'}`}
-                            onClick={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                         />
                     </div>
 
@@ -537,23 +529,22 @@ export function DesktopMoreMenu({
                 {autoSkipIntro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>时长:</span>
-                        {/* 🍎 關鍵修改：移除了手動 Focus，加上 inputMode="numeric" 與 pattern="[0-9]*" 喚出數字小鍵盤 */}
+                        {/* 🍎 關鍵修改：改用 type="text" 搭配 inputMode 完美相容 iOS，並移除干擾聚焦的 touch 事件 */}
                         <input
-                            type="number"
+                            type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
-                            min="0"
-                            max="600"
-                            value={skipIntroSeconds}
-                            onChange={(e) => setSkipIntroSeconds(parseInt(e.target.value) || 0)}
+                            value={skipIntroSeconds === 0 ? '' : skipIntroSeconds}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                setSkipIntroSeconds(val ? parseInt(val) : 0);
+                            }}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
-                            onClick={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.currentTarget.focus();
+                            }}
+                            style={{ WebkitUserSelect: 'text', userSelect: 'text', pointerEvents: 'auto' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
                     </div>
@@ -585,23 +576,22 @@ export function DesktopMoreMenu({
                 {autoSkipOutro && (
                     <div className={`mt-2 flex items-center gap-1.5 ${isRotated ? 'ml-4' : 'ml-6 sm:ml-7'}`}>
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>剩余:</span>
-                        {/* 🍎 關鍵修改：移除了手動 Focus，加上 inputMode="numeric" 與 pattern="[0-9]*" 喚出數字小鍵盤 */}
+                        {/* 🍎 關鍵修改：改用 type="text" 搭配 inputMode 完美相容 iOS，並移除干擾聚焦的 touch 事件 */}
                         <input
-                            type="number"
+                            type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
-                            min="0"
-                            max="600"
-                            value={skipOutroSeconds}
-                            onChange={(e) => setSkipOutroSeconds(parseInt(e.target.value) || 0)}
+                            value={skipOutroSeconds === 0 ? '' : skipOutroSeconds}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                setSkipOutroSeconds(val ? parseInt(val) : 0);
+                            }}
                             className={`text-center bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-2xl)] text-[var(--text-color)] focus:outline-none focus:border-[var(--accent-color)] no-spinner ${isRotated ? 'w-10 px-1 py-0 text-[10px]' : 'w-12 sm:w-16 px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs sm:text-sm'}`}
-                            onClick={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.currentTarget.focus();
+                            }}
+                            style={{ WebkitUserSelect: 'text', userSelect: 'text', pointerEvents: 'auto' }}
                         />
                         <span className={`text-[var(--text-color-secondary)] ${isRotated ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>秒</span>
                     </div>
