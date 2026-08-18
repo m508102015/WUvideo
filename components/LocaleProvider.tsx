@@ -40,23 +40,31 @@ export function LocaleProvider() {
         const OpenCC = await import('opencc-js');
         const converter = OpenCC.Converter({ from: 'cn', to: 'tw' });
 
-        // 1. 取得轉換函數並「立即執行」第一次全域轉換
-        const convertDOM = OpenCC.HTMLConverter(converter, document.documentElement, 'zh-CN', 'zh-TW');
+        // 1. 建立一個包裝函數來重複執行轉換
+        const convertDOM = () => {
+          OpenCC.HTMLConverter(converter, document.documentElement, 'zh-CN', 'zh-TW');
+        };
+
+        // 立即執行第一次全域轉換
         convertDOM(); 
-        
         document.documentElement.lang = 'zh-TW';
 
         // 2. 手動建立 MutationObserver 攔截 React 的動態渲染
-        // 加入 isConverting 鎖，防止 opencc 修改 DOM 時觸發自身的無限迴圈
-        let isConverting = false;
         observer = new MutationObserver(() => {
-          if (isConverting) return;
-          isConverting = true;
-          convertDOM(); // 當 React 產生新元素時，立刻轉換
-          isConverting = false;
+          // 安全鎖：轉換前先暫停監聽，防止 OpenCC 改變文字時觸發 MutationObserver 導致無限迴圈
+          observer?.disconnect();
+          
+          convertDOM(); // 執行繁體轉換
+          
+          // 轉換完成後，重新掛載監聽器
+          observer?.observe(document.body, { 
+            childList: true, 
+            subtree: true, 
+            characterData: true 
+          });
         });
 
-        // 開始監視整個 body 的節點變化與文字內容變化
+        // 首次啟動監聽
         observer.observe(document.body, { 
           childList: true, 
           subtree: true, 
@@ -67,8 +75,7 @@ export function LocaleProvider() {
           observer?.disconnect();
           // Reverse conversion on cleanup
           const reverseConverter = OpenCC.Converter({ from: 'tw', to: 'cn' });
-          const revertDOM = OpenCC.HTMLConverter(reverseConverter, document.documentElement, 'zh-TW', 'zh-CN');
-          revertDOM(); // 執行還原
+          OpenCC.HTMLConverter(reverseConverter, document.documentElement, 'zh-TW', 'zh-CN');
           document.documentElement.lang = 'zh-CN';
         };
       } catch (err) {
