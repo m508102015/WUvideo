@@ -1,7 +1,7 @@
 {
-    "name": "KVideo - 视频聚合平台",
-    "short_name": "KVideo",
-    "description": "多源视频聚合搜索和播放平台",
+    "name": "WuVideo - 私人使用",
+    "short_name": "WuVideo",
+    "description": "WuVideo - 私人使用",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#000000",
