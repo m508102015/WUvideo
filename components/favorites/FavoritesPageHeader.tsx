@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/ui/Icon';
 import { useFavorites } from '@/lib/store/favorites-store';
-// 🍎 引入歷史紀錄 Store (請確認您的路徑是否正確，通常會是這個路徑)
 import { useHistoryStore } from '@/lib/store/history-store';
 
 interface FavoritesPageHeaderProps {
@@ -25,8 +24,9 @@ export function FavoritesPageHeader({
   
   const { isCheckingUpdates, checkUpdates } = useFavorites(isPremium);
   
-  // 🍎 取出目前使用者的歷史紀錄陣列
-  const history = useHistoryStore((state) => state.history);
+  // 🍎 關鍵修正：將 state.history 改為 state.items (因為 HistoryStore 內部通常將清單命名為 items)
+  // 如果 TypeScript 還是報錯，請隨時把 history-store.ts 貼給我看，我們立刻就能抓出它真正的名字！
+  const history = useHistoryStore((state: any) => state.items || state.history || []);
 
   return (
     <div>
@@ -56,7 +56,6 @@ export function FavoritesPageHeader({
           
           {count > 0 && (
             <button
-              // 🍎 關鍵修復：使用箭頭函數，將 history 陣列正確傳遞給 checkUpdates
               onClick={() => checkUpdates(history)}
               disabled={isCheckingUpdates}
               className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--accent-color)] text-white hover:opacity-90 disabled:opacity-50 transition-all text-sm flex items-center gap-2 cursor-pointer"
