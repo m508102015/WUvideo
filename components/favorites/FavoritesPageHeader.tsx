@@ -2,15 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/ui/Icon';
-// 🍎 引入我們寫好的 Store
 import { useFavorites } from '@/lib/store/favorites-store';
+// 🍎 引入歷史紀錄 Store (根據專案慣例，路徑應該長這樣)
+import { useHistoryStore } from '@/lib/store/history-store'; 
 
 interface FavoritesPageHeaderProps {
   count: number;
   sortBy: 'date' | 'title';
   onSortChange: (sort: 'date' | 'title') => void;
   onClearAll: () => void;
-  isPremium?: boolean; // 🍎 新增：確保能夠支援 Premium 收藏庫的切換
+  isPremium?: boolean;
 }
 
 export function FavoritesPageHeader({
@@ -22,8 +23,9 @@ export function FavoritesPageHeader({
 }: FavoritesPageHeaderProps) {
   const router = useRouter();
   
-  // 🍎 取出檢查更新的狀態與功能
   const { isCheckingUpdates, checkUpdates } = useFavorites(isPremium);
+  // 🍎 取出目前使用者的歷史紀錄陣列
+  const history = useHistoryStore((state) => state.history);
 
   return (
     <div>
@@ -49,13 +51,12 @@ export function FavoritesPageHeader({
           </div>
         </div>
 
-        {/* 🍎 加上 flex-wrap 確保手機版面不會擠出去 */}
         <div className="flex items-center gap-2 flex-wrap">
           
-          {/* 🍎 新增：一键检查更新按钮 */}
+          {/* 🍎 按下檢查時，把 history 當作參數傳進去比對 */}
           {count > 0 && (
             <button
-              onClick={checkUpdates}
+              onClick={() => checkUpdates(history)}
               disabled={isCheckingUpdates}
               className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--accent-color)] text-white hover:opacity-90 disabled:opacity-50 transition-all text-sm flex items-center gap-2 cursor-pointer"
             >
@@ -64,7 +65,6 @@ export function FavoritesPageHeader({
             </button>
           )}
 
-          {/* Sort buttons */}
           <div className="flex items-center gap-1 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-full)] p-1">
             <button
               onClick={() => onSortChange('date')}
@@ -88,7 +88,6 @@ export function FavoritesPageHeader({
             </button>
           </div>
 
-          {/* Clear all button */}
           {count > 0 && (
             <button
               onClick={onClearAll}
