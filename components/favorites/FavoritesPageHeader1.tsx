@@ -2,21 +2,28 @@
 
 import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/ui/Icon';
+// 🍎 引入我們寫好的 Store
+import { useFavorites } from '@/lib/store/favorites-store';
 
 interface FavoritesPageHeaderProps {
   count: number;
   sortBy: 'date' | 'title';
   onSortChange: (sort: 'date' | 'title') => void;
   onClearAll: () => void;
+  isPremium?: boolean; // 🍎 新增：確保能夠支援 Premium 收藏庫的切換
 }
 
 export function FavoritesPageHeader({
   count,
   sortBy,
   onSortChange,
-  onClearAll
+  onClearAll,
+  isPremium = false
 }: FavoritesPageHeaderProps) {
   const router = useRouter();
+  
+  // 🍎 取出檢查更新的狀態與功能
+  const { isCheckingUpdates, checkUpdates } = useFavorites(isPremium);
 
   return (
     <div>
@@ -42,12 +49,26 @@ export function FavoritesPageHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* 🍎 加上 flex-wrap 確保手機版面不會擠出去 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          
+          {/* 🍎 新增：一键检查更新按钮 */}
+          {count > 0 && (
+            <button
+              onClick={checkUpdates}
+              disabled={isCheckingUpdates}
+              className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--accent-color)] text-white hover:opacity-90 disabled:opacity-50 transition-all text-sm flex items-center gap-2 cursor-pointer"
+            >
+              <Icons.RefreshCw size={16} className={isCheckingUpdates ? 'animate-spin' : ''} />
+              {isCheckingUpdates ? '检查中...' : '一键检查更新'}
+            </button>
+          )}
+
           {/* Sort buttons */}
           <div className="flex items-center gap-1 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-[var(--radius-full)] p-1">
             <button
               onClick={() => onSortChange('date')}
-              className={`px-3 py-1.5 rounded-[var(--radius-full)] text-sm transition-all ${
+              className={`px-3 py-1.5 rounded-[var(--radius-full)] text-sm transition-all cursor-pointer ${
                 sortBy === 'date'
                   ? 'bg-[var(--accent-color)] text-white'
                   : 'text-[var(--text-color)] hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,transparent)]'
@@ -57,7 +78,7 @@ export function FavoritesPageHeader({
             </button>
             <button
               onClick={() => onSortChange('title')}
-              className={`px-3 py-1.5 rounded-[var(--radius-full)] text-sm transition-all ${
+              className={`px-3 py-1.5 rounded-[var(--radius-full)] text-sm transition-all cursor-pointer ${
                 sortBy === 'title'
                   ? 'bg-[var(--accent-color)] text-white'
                   : 'text-[var(--text-color)] hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,transparent)]'
@@ -71,7 +92,7 @@ export function FavoritesPageHeader({
           {count > 0 && (
             <button
               onClick={onClearAll}
-              className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-color)] hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,transparent)] transition-all text-sm flex items-center gap-2"
+              className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-color)] hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,transparent)] transition-all text-sm flex items-center gap-2 cursor-pointer"
             >
               <Icons.Trash size={16} />
               清空收藏
