@@ -20,7 +20,7 @@ export function FavoritesPageHeader({
   isPremium = false
 }: FavoritesPageHeaderProps) {
   const router = useRouter();
-  
+
   const useStore = isPremium ? usePremiumFavoritesStore : useFavoritesStore;
   const isCheckingUpdates = useStore(state => state.isCheckingUpdates);
 
@@ -49,10 +49,9 @@ export function FavoritesPageHeader({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          
+
           {count > 0 && (
             <button
-              // 🍎 改用 getState() 確保點擊時 100% 能觸發 Store 裡的動作
               onClick={() => {
                 const store = isPremium ? usePremiumFavoritesStore.getState() : useFavoritesStore.getState();
                 store.checkUpdates();
@@ -60,8 +59,8 @@ export function FavoritesPageHeader({
               disabled={isCheckingUpdates}
               className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--accent-color)] text-white hover:opacity-90 disabled:opacity-50 transition-all text-sm flex items-center gap-2 cursor-pointer"
             >
-              <svg 
-                className={`w-4 h-4 ${isCheckingUpdates ? 'animate-spin' : ''}`} 
+              <svg
+                className={`w-4 h-4 ${isCheckingUpdates ? 'animate-spin' : ''}`}
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
                 <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
