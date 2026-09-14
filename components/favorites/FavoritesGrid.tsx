@@ -41,7 +41,6 @@ export const FavoritesGrid = memo(function FavoritesGrid({
         source: favorite.source,
         sourceName: favorite.sourceName,
         _hasUpdate: favorite.hasUpdate,
-        // 用 optional chaining 以防舊資料無此欄位
         _watchedEpisode: favorite.watchedEpisode ?? favorite.savedEpisodeCount ?? 0,
         _latestEpisodeCount: favorite.latestEpisodeCount,
         _unwatchedEpisodeCount: favorite.unwatchedEpisodeCount ?? 0,
