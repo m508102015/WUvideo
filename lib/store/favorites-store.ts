@@ -116,7 +116,7 @@ const createFavoritesStore = (name: string) =>
                     }));
                 },
 
-                // 🍎 帶有 Console.log 探照燈的除錯版本
+                // 🍎 修正 API 網址並結合除錯日誌的終極版
                 checkUpdates: async () => {
                     const { favorites } = get();
                     if (favorites.length === 0) return;
@@ -143,40 +143,38 @@ const createFavoritesStore = (name: string) =>
                     }
 
                     console.log("🔍 開始檢查更新... 總共收藏數量:", updatedFavorites.length);
-                    console.log("📂 抓取到的歷史紀錄數量:", historyItems.length);
 
                     for (let i = 0; i < updatedFavorites.length; i++) {
                         const fav = updatedFavorites[i];
                         console.log(`\n⏳ 正在檢查: 【${fav.title}】...`);
                         
                         try {
-                            const res = await fetch(`/api/search?keyword=${encodeURIComponent(fav.title)}`);
+                            // 🍎 關鍵修復：把 /api/search 改成 /api/search-parallel
+                            const res = await fetch(`/api/search-parallel?keyword=${encodeURIComponent(fav.title)}`);
+                            
                             if (res.ok) {
                                 const data = await res.json();
-                                console.log(`📡 API 回傳結果:`, data);
-
                                 const currentVideo = data?.list?.find(
                                     (v: any) => String(v.vod_id) === String(fav.videoId) && v.source === fav.source
                                 );
                                 
                                 if (currentVideo) {
-                                    console.log(`🎯 成功比對到影片:`, currentVideo);
                                     let fetchedEpisodeCount = 0;
 
                                     if (currentVideo.vod_play_url) {
                                         fetchedEpisodeCount = currentVideo.vod_play_url.split('#').length;
-                                        console.log(`🔢 從播放連結算出總集數:`, fetchedEpisodeCount);
+                                        console.log(`🔢 從播放連結算出最新集數:`, fetchedEpisodeCount);
                                     } else if (currentVideo.vod_remarks) {
                                         const match = currentVideo.vod_remarks.match(/\d+/);
                                         if (match) {
                                             fetchedEpisodeCount = parseInt(match[0], 10);
-                                            console.log(`🔢 從備註 (${currentVideo.vod_remarks}) 算出總集數:`, fetchedEpisodeCount);
                                         }
                                     }
 
                                     const historyMatch = historyItems.find(h => String(h.videoId) === String(fav.videoId) && h.source === fav.source);
-                                    const actualWatchedCount = historyMatch ? (historyMatch.episodeIndex + 1) : (fav.savedEpisodeCount || 1);
-                                    console.log(`👁️ 使用者實際觀看進度: 第 ${actualWatchedCount} 集`);
+                                    // 注意這裡：如果沒看過，預設當作 0（而不是 1），這樣只要有第 1 集就會亮起 NEW
+                                    const actualWatchedCount = historyMatch ? (historyMatch.episodeIndex + 1) : (fav.savedEpisodeCount || 0);
+                                    console.log(`👁️ 歷史觀看進度: 第 ${actualWatchedCount} 集`);
 
                                     if (fetchedEpisodeCount > 0 && fetchedEpisodeCount > actualWatchedCount) {
                                         console.log(`✨ 結論：【有更新！】 (${actualWatchedCount} -> ${fetchedEpisodeCount})`);
@@ -188,21 +186,19 @@ const createFavoritesStore = (name: string) =>
                                             remarks: currentVideo.vod_remarks || `更新至第 ${fetchedEpisodeCount} 集`
                                         };
                                     } else {
-                                        console.log(`😴 結論：沒有新集數。`);
                                         updatedFavorites[i] = {
                                             ...fav,
                                             savedEpisodeCount: actualWatchedCount,
                                             hasUpdate: false
                                         };
                                     }
-                                } else {
-                                    console.warn(`⚠️ 找不到對應的影片 ID 或 Source。`);
                                 }
                             }
                         } catch (error) {
                             console.error(`❌ 檢查 ${fav.title} 更新失敗:`, error);
                         }
 
+                        // 每次請求間隔 600ms，保護您的伺服器與片源不被 Ban
                         await new Promise(resolve => setTimeout(resolve, 600));
                     }
 
