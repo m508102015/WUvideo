@@ -4,16 +4,20 @@ import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import { VideoCard } from '@/components/search/VideoCard';
 import { FavoritesEmptyState } from './FavoritesEmptyState';
 import type { FavoriteItem, Video } from '@/lib/types';
-// 🍎 引入底層 Store，用來清除更新標記
-import { useFavoritesStore, usePremiumFavoritesStore } from '@/lib/store/favorites-store';
 
 interface FavoritesGridProps {
   favorites: FavoriteItem[];
   isPremium?: boolean;
 }
 
-// 擴充原有的 Video 型別，讓它能往下傳遞 hasUpdate 屬性
-type ExtendedVideo = Video & { _hasUpdate?: boolean };
+// 收藏卡片額外需要的追劇狀態
+type ExtendedVideo = Video & {
+  _hasUpdate?: boolean;
+  _watchedEpisode?: number;
+  _latestEpisodeCount?: number;
+  _unwatchedEpisodeCount?: number;
+  _nextEpisodeIndex?: number;
+};
 
 export const FavoritesGrid = memo(function FavoritesGrid({
   favorites,
@@ -23,10 +27,6 @@ export const FavoritesGrid = memo(function FavoritesGrid({
   const [visibleCount, setVisibleCount] = useState(24);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
-
-  // 🍎 抓取清除標籤的函數
-  const useStore = isPremium ? usePremiumFavoritesStore : useFavoritesStore;
-  const clearUpdateBadge = useStore(state => state.clearUpdateBadge);
 
   // Convert FavoriteItem to Video format
   const videos: ExtendedVideo[] = useMemo(
@@ -40,7 +40,11 @@ export const FavoritesGrid = memo(function FavoritesGrid({
         type_name: favorite.type,
         source: favorite.source,
         sourceName: favorite.sourceName,
-        _hasUpdate: favorite.hasUpdate, // 🍎 把更新標記綁定進來
+        _hasUpdate: favorite.hasUpdate,
+        _watchedEpisode: favorite.watchedEpisode ?? favorite.savedEpisodeCount ?? 0,
+        _latestEpisodeCount: favorite.latestEpisodeCount,
+        _unwatchedEpisodeCount: favorite.unwatchedEpisodeCount ?? 0,
+        _nextEpisodeIndex: favorite.nextEpisodeIndex,
       })),
     [favorites]
   );
@@ -89,19 +93,14 @@ export const FavoritesGrid = memo(function FavoritesGrid({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-3 md:gap-4 lg:gap-6">
         {videos.slice(0, visibleCount).map((video) => {
           const cardId = `${video.source}:${video.vod_id}`;
-          const videoUrl = `/player?id=${video.vod_id}&source=${video.source}&title=${encodeURIComponent(video.vod_name)}${isPremium ? '&premium=1' : ''}`;
+          const episodeIndex = video._nextEpisodeIndex;
+          const videoUrl = `/player?id=${video.vod_id}&source=${video.source}&title=${encodeURIComponent(video.vod_name)}${episodeIndex !== undefined ? `&episode=${episodeIndex}` : ''}${isPremium ? '&premium=1' : ''}`;
           const isActive = activeCardId === cardId;
 
           return (
-            <div 
-              key={cardId} 
+            <div
+              key={cardId}
               className="relative h-full w-full group"
-              // 🍎 攔截點擊事件：如果卡片有更新標記，就在點擊觀看時把它清除
-              onClickCapture={() => {
-                if (video._hasUpdate) {
-                  clearUpdateBadge(video.vod_id, video.source);
-                }
-              }}
             >
               <VideoCard
                 video={video}
