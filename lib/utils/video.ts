@@ -74,3 +74,78 @@ export function extractPlaybackQualityLabel(
 export function extractQualityLabel(remarks?: string, quality?: string): { label: string; color: string } | null {
     return extractNumericResolutionLabel(remarks, quality);
 }
+
+// ============================================================
+// 追劇更新檢查（相容層）
+// ------------------------------------------------------------
+// 這個函式保留是為了讓舊元件（如 FavoritesItem.tsx）繼續運作。
+// 新版邏輯全部集中在 favorites-store 的 checkUpdates()。
+// ============================================================
+
+import {
+    useFavoritesStore,
+    usePremiumFavoritesStore,
+} from '@/lib/store/favorites-store';
+import type { FavoriteItem } from '@/lib/types';
+
+export interface VideoUpdateStatus {
+    hasUpdate: boolean;
+    watchedEpisode?: number;
+    latestEpisodeCount?: number;
+    unwatchedEpisodeCount?: number;
+    nextEpisodeIndex?: number;
+    updateCheckedAt?: number;
+}
+
+/**
+ * 檢查單一收藏影片的追劇更新狀態。
+ *
+ * 注意：
+ * - 會觸發整個收藏清單的 checkUpdates()（因為 store 是批次處理）。
+ * - 若該影片不在收藏中，會直接回傳 hasUpdate: false。
+ *
+ * @param item 至少需要 videoId 與 source
+ * @param options.isPremium 是否為 premium 收藏
+ */
+export async function checkVideoUpdateStatus(
+    item: Pick<FavoriteItem, 'videoId' | 'source'> & Partial<FavoriteItem>,
+    options?: { isPremium?: boolean }
+): Promise<VideoUpdateStatus> {
+    const isPremium = options?.isPremium ?? false;
+
+    const getStore = () =>
+        isPremium ? usePremiumFavoritesStore.getState() : useFavoritesStore.getState();
+
+    const initialStore = getStore();
+    const inFavorites = initialStore.favorites.some(
+        fav =>
+            String(fav.videoId) === String(item.videoId) &&
+            fav.source === item.source
+    );
+
+    if (!inFavorites) {
+        return { hasUpdate: false };
+    }
+
+    await initialStore.checkUpdates();
+
+    const updatedStore = getStore();
+    const updated = updatedStore.favorites.find(
+        fav =>
+            String(fav.videoId) === String(item.videoId) &&
+            fav.source === item.source
+    );
+
+    if (!updated) {
+        return { hasUpdate: false };
+    }
+
+    return {
+        hasUpdate: updated.hasUpdate ?? false,
+        watchedEpisode: updated.watchedEpisode,
+        latestEpisodeCount: updated.latestEpisodeCount,
+        unwatchedEpisodeCount: updated.unwatchedEpisodeCount,
+        nextEpisodeIndex: updated.nextEpisodeIndex,
+        updateCheckedAt: updated.updateCheckedAt,
+    };
+}
