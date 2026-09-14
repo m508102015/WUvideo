@@ -69,7 +69,7 @@ export function FavoritesPageHeader({
                 <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
                 <path d="M16 21v-5h5" />
               </svg>
-              {isCheckingUpdates ? '检查中...' : '一键检查更新'}
+              {isCheckingUpdates ? '檢查中...' : '檢查追劇更新'}
             </button>
           )}
 
