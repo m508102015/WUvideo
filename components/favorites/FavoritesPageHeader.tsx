@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/ui/Icon';
-// 🍎 改為直接引入底層 Store
 import { useFavoritesStore, usePremiumFavoritesStore } from '@/lib/store/favorites-store';
 
 interface FavoritesPageHeaderProps {
@@ -22,10 +21,8 @@ export function FavoritesPageHeader({
 }: FavoritesPageHeaderProps) {
   const router = useRouter();
   
-  // 🍎 效能優化：精準抓取需要的變數，避免無謂的重新渲染導致崩潰
   const useStore = isPremium ? usePremiumFavoritesStore : useFavoritesStore;
   const isCheckingUpdates = useStore(state => state.isCheckingUpdates);
-  const checkUpdates = useStore(state => state.checkUpdates);
 
   return (
     <div>
@@ -55,11 +52,14 @@ export function FavoritesPageHeader({
           
           {count > 0 && (
             <button
-              onClick={() => checkUpdates()}
+              // 🍎 改用 getState() 確保點擊時 100% 能觸發 Store 裡的動作
+              onClick={() => {
+                const store = isPremium ? usePremiumFavoritesStore.getState() : useFavoritesStore.getState();
+                store.checkUpdates();
+              }}
               disabled={isCheckingUpdates}
               className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--accent-color)] text-white hover:opacity-90 disabled:opacity-50 transition-all text-sm flex items-center gap-2 cursor-pointer"
             >
-              {/* 🍎 絕對安全：使用純 SVG 繪製重新整理圖示，100% 避免找不到 Icon 導致的崩潰 */}
               <svg 
                 className={`w-4 h-4 ${isCheckingUpdates ? 'animate-spin' : ''}`} 
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
