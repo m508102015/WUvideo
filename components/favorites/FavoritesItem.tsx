@@ -1,139 +1,64 @@
-'use client';
-
-import { Icons } from '@/components/ui/Icon';
-import { formatDate } from '@/lib/utils/format-utils';
-import { getSourceName } from '@/lib/utils/source-names';
-import { storeGroupedSources } from '@/lib/utils/grouped-sources-cache';
-import type { FavoriteItem } from '@/lib/types';
-// 🍎 改為直接引入底層 Store
-import { useFavoritesStore, usePremiumFavoritesStore } from '@/lib/store/favorites-store';
+import React from 'react';
+import { useHistoryStore } from '@/lib/store/history-store';
+import { checkVideoUpdateStatus } from '@/lib/utils/video';
 
 interface FavoritesItemProps {
-    item: FavoriteItem;
-    onRemove: () => void;
-    isPremium?: boolean;
+  item: {
+    id: string;
+    title: string;
+    cover?: string;
+    totalEpisodes?: number;
+    episodesCount?: number;
+    [key: string]: any;
+  };
+  onSelect?: (id: string) => void;
 }
 
-export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesItemProps) {
-    // 🍎 效能優化：精準抓取 clearUpdateBadge，防止記憶體過載
-    const useStore = isPremium ? usePremiumFavoritesStore : useFavoritesStore;
-    const clearUpdateBadge = useStore(state => state.clearUpdateBadge);
+export const FavoritesItem: React.FC<FavoritesItemProps> = ({ item, onSelect }) => {
+  // 從 history-store 中尋找該影片的觀看歷史紀錄
+  const historyRecord = useHistoryStore((state) => {
+    // 兼容不同的歷史紀錄資料結構（陣列或物件）
+    if (Array.isArray(state.history)) {
+      return state.history.find((h: any) => h.id === item.id || h.videoId === item.id);
+    }
+    return null;
+  });
 
-    // 🍎 終極防呆機制：如果遇到舊版損壞的資料，直接跳過不渲染，防止整個畫面崩潰！
-    if (!item || !item.videoId) return null;
+  // 計算目前觀看進度、已看集數與是否有新集數
+  const progressInfo = checkVideoUpdateStatus(item, historyRecord);
 
-    const getVideoUrl = (): string => {
-        const params = new URLSearchParams({
-            id: item.videoId.toString(),
-            source: item.source || '',
-            title: item.title || '',
-        });
+  return (
+    <div 
+      className="relative group cursor-pointer bg-card rounded-lg overflow-hidden border border-border p-2 transition-all hover:shadow-md"
+      onClick={() => onSelect?.(item.id)}
+    >
+      {/* 封面圖片區域 */}
+      <div className="aspect-[16/9] w-full bg-muted relative rounded overflow-hidden">
+        {item.cover && (
+          <img src={item.cover} alt={item.title} className="object-cover w-full h-full" />
+        )}
         
-        if (item.sourceMap && typeof item.sourceMap === 'object' && Object.keys(item.sourceMap).length > 1) {
-            const groupData = Object.entries(item.sourceMap).map(([sourceName, videoId]) => ({
-                id: videoId,
-                source: sourceName,
-                sourceName: getSourceName(sourceName),
-                pic: item.poster,
-            }));
-            const cacheKey = storeGroupedSources(groupData);
-            if (cacheKey) {
-                params.set('gs', cacheKey);
-            }
-        }
-        if (isPremium) {
-            params.set('premium', '1');
-        }
-        return `/player?${params.toString()}`;
-    };
+        {/* 動態狀態標籤：根據是否有新集數顯示不同提示 */}
+        {progressInfo.hasNewEpisodes ? (
+          <span className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
+            有新集數 (已看 {progressInfo.watchedEpisode}/{progressInfo.totalEpisodes})
+          </span>
+        ) : (
+          <span className="absolute top-2 right-2 bg-secondary text-secondary-foreground text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
+            已追到最新
+          </span>
+        )}
+      </div>
 
-    const handleClick = (event: React.MouseEvent) => {
-        if (item.hasUpdate) {
-            clearUpdateBadge(item.videoId, item.source);
-        }
-        if (event.button === 1 || event.ctrlKey || event.metaKey) {
-            event.preventDefault();
-            window.open(getVideoUrl(), '_blank');
-            return;
-        }
-    };
+      {/* 標題與詳細進度資訊 */}
+      <div className="mt-2.5">
+        <h3 className="font-semibold text-sm truncate">{item.title}</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          觀看進度：第 {progressInfo.watchedEpisode} 集 / 共 {progressInfo.totalEpisodes} 集
+        </p>
+      </div>
+    </div>
+  );
+};
 
-    return (
-        <div className="group bg-[color-mix(in_srgb,var(--glass-bg)_50%,transparent)] rounded-[var(--radius-2xl)] p-3 hover:bg-[color-mix(in_srgb,var(--accent-color)_10%,transparent)] transition-all border border-transparent hover:border-[var(--glass-border)]">
-            <a
-                href={getVideoUrl()}
-                onClick={(e) => {
-                    e.preventDefault();
-                    handleClick(e as any);
-                    if (!e.ctrlKey && !e.metaKey) {
-                        window.location.href = getVideoUrl();
-                    }
-                }}
-                onAuxClick={(e) => handleClick(e as any)}
-                className="block"
-            >
-                <div className="flex gap-3">
-                    <div className="relative w-28 h-16 flex-shrink-0 bg-[var(--glass-bg)] rounded-[var(--radius-2xl)] overflow-hidden">
-                        {item.poster ? (
-                            <img
-                                src={item.poster}
-                                alt={item.title || '影片'}
-                                className="w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                    const target = e.currentTarget as HTMLImageElement;
-                                    target.style.display = 'none';
-                                }}
-                            />
-                        ) : null}
-                        
-                        <div className="absolute inset-0 flex items-center justify-center -z-10">
-                            <Icons.Film size={32} className="text-[var(--text-color-secondary)] opacity-30" />
-                        </div>
-
-                        {item.hasUpdate && (
-                            <div className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md z-10 animate-pulse border border-white/20">
-                                NEW
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-[var(--text-color)] truncate group-hover:text-[var(--accent-color)] transition-colors mb-1">
-                            {item.title || '未知影片'}
-                        </h3>
-                        {item.year && (
-                            <p className="text-xs text-[var(--text-color-secondary)] mb-1">
-                                {item.year}
-                            </p>
-                        )}
-                        <div className="flex items-center justify-between text-xs text-[var(--text-color-secondary)]">
-                            {item.remarks && (
-                                <span className={`truncate ${item.hasUpdate ? 'text-[var(--accent-color)] font-medium' : ''}`}>
-                                    {item.remarks}
-                                </span>
-                            )}
-                            <span className="flex-shrink-0 ml-2">
-                                {item.addedAt ? formatDate(item.addedAt) : ''}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1 self-start opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onRemove();
-                            }}
-                            className="p-1.5 hover:bg-[var(--glass-bg)] rounded-full cursor-pointer"
-                            aria-label="取消收藏"
-                        >
-                            <Icons.Trash size={14} className="text-[var(--text-color-secondary)]" />
-                        </button>
-                    </div>
-                </div>
-            </a>
-        </div>
-    );
-}
+export default FavoritesItem;
