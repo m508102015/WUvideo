@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/ui/Icon';
 import { useFavorites } from '@/lib/store/favorites-store';
-import { useHistoryStore } from '@/lib/store/history-store';
 
 interface FavoritesPageHeaderProps {
   count: number;
@@ -23,10 +22,6 @@ export function FavoritesPageHeader({
   const router = useRouter();
   
   const { isCheckingUpdates, checkUpdates } = useFavorites(isPremium);
-  
-  // 🍎 關鍵修正：將 state.history 改為 state.items (因為 HistoryStore 內部通常將清單命名為 items)
-  // 如果 TypeScript 還是報錯，請隨時把 history-store.ts 貼給我看，我們立刻就能抓出它真正的名字！
-  const history = useHistoryStore((state: any) => state.items || state.history || []);
 
   return (
     <div>
@@ -56,11 +51,20 @@ export function FavoritesPageHeader({
           
           {count > 0 && (
             <button
-              onClick={() => checkUpdates(history)}
+              onClick={() => checkUpdates()}
               disabled={isCheckingUpdates}
               className="px-4 py-2 rounded-[var(--radius-full)] bg-[var(--accent-color)] text-white hover:opacity-90 disabled:opacity-50 transition-all text-sm flex items-center gap-2 cursor-pointer"
             >
-              <Icons.RefreshCw size={16} className={isCheckingUpdates ? 'animate-spin' : ''} />
+              {/* 🍎 關鍵修復：直接使用原生 SVG 繪製重新整理圖示，100% 避免找不到 Icon 導致的崩潰 */}
+              <svg 
+                className={`w-4 h-4 ${isCheckingUpdates ? 'animate-spin' : ''}`} 
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 21v-5h5" />
+              </svg>
               {isCheckingUpdates ? '检查中...' : '一键检查更新'}
             </button>
           )}
