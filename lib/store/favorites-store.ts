@@ -74,12 +74,6 @@ function getHistoryFromLocalStorage(): VideoHistoryItem[] {
     return result;
 }
 
-/**
- * 找到與收藏最吻合的觀看歷史。
- *
- * History store 目前以「標題」去重，因此優先用標題匹配；
- * 若標題匹配不到，再使用 videoId/source。
- */
 function findHistoryForFavorite(
     favorite: FavoriteItem,
     historyItems: VideoHistoryItem[]
@@ -159,7 +153,6 @@ async function fetchEpisodeCount(
             remarks: detail.vod_remarks || undefined,
         };
     } catch (error) {
-        // 單一來源失敗不應讓整個收藏更新檢查失敗
         console.warn(`[Favorites] 檢查「${favorite.title}」失敗:`, error);
         return null;
     }
@@ -237,12 +230,6 @@ const createFavoritesStore = (name: string) =>
 
                 importFavorites: (favorites) => set({ favorites }),
 
-                /**
-                 * 清除舊版 NEW 標記。
-                 *
-                 * 新版 UI 建議不要在「點開影片」時清掉，
-                 * 而是等下一次檢查，確認觀看進度真的追上最新集數後再清除。
-                 */
                 clearUpdateBadge: (videoId, source) => {
                     const favoriteId = generateFavoriteId(videoId, source);
 
@@ -262,12 +249,6 @@ const createFavoritesStore = (name: string) =>
                     }));
                 },
 
-                /**
-                 * 一鍵檢查收藏影片是否有新集數 / 未看集數。
-                 *
-                 * 使用 /api/detail，而不是 /api/search-parallel。
-                 * 每個收藏只查自己的 source + videoId，因此不會把所有來源全部搜尋一遍。
-                 */
                 checkUpdates: async () => {
                     const favorites = get().favorites;
                     if (favorites.length === 0) return;
@@ -287,8 +268,6 @@ const createFavoritesStore = (name: string) =>
                             const favorite = updatedFavorites[index];
                             const history = findHistoryForFavorite(favorite, historyItems);
 
-                            // episodeIndex 為 0-based，所以顯示集數要 +1。
-                            // 尚未看過 = 0。
                             const watchedEpisode = history
                                 ? Math.max(0, Number(history.episodeIndex) + 1)
                                 : 0;
@@ -296,7 +275,6 @@ const createFavoritesStore = (name: string) =>
                             const detail = await fetchEpisodeCount(favorite);
 
                             if (!detail) {
-                                // 查詢失敗時保留舊資料，不誤判成「已追完」。
                                 updatedFavorites[index] = {
                                     ...favorite,
                                     watchedEpisode,
@@ -305,8 +283,6 @@ const createFavoritesStore = (name: string) =>
                             }
 
                             const latestEpisodeCount = detail.count;
-
-                            // 單集影片視為電影/單集內容，不進行追劇更新提示。
                             const isSeries = latestEpisodeCount > 1;
 
                             const unwatchedEpisodeCount = isSeries
