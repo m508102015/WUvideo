@@ -116,7 +116,7 @@ const createFavoritesStore = (name: string) =>
                     }));
                 },
 
-                // 🍎 修正 API 網址並結合除錯日誌的終極版
+                // 🍎 修正為 POST 請求
                 checkUpdates: async () => {
                     const { favorites } = get();
                     if (favorites.length === 0) return;
@@ -149,12 +149,21 @@ const createFavoritesStore = (name: string) =>
                         console.log(`\n⏳ 正在檢查: 【${fav.title}】...`);
                         
                         try {
-                            // 🍎 關鍵修復：把 /api/search 改成 /api/search-parallel
-                            const res = await fetch(`/api/search-parallel?keyword=${encodeURIComponent(fav.title)}`);
+                            // 🍎 關鍵修復：改用 POST 請求，並將 keyword 放入 body 中
+                            const res = await fetch('/api/search-parallel', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ keyword: fav.title })
+                            });
                             
                             if (res.ok) {
                                 const data = await res.json();
-                                const currentVideo = data?.list?.find(
+                                // 防彈處理：API 可能直接回傳陣列，或包在 list 物件裡
+                                const resultList = Array.isArray(data) ? data : data?.list || [];
+                                
+                                const currentVideo = resultList.find(
                                     (v: any) => String(v.vod_id) === String(fav.videoId) && v.source === fav.source
                                 );
                                 
@@ -172,7 +181,6 @@ const createFavoritesStore = (name: string) =>
                                     }
 
                                     const historyMatch = historyItems.find(h => String(h.videoId) === String(fav.videoId) && h.source === fav.source);
-                                    // 注意這裡：如果沒看過，預設當作 0（而不是 1），這樣只要有第 1 集就會亮起 NEW
                                     const actualWatchedCount = historyMatch ? (historyMatch.episodeIndex + 1) : (fav.savedEpisodeCount || 0);
                                     console.log(`👁️ 歷史觀看進度: 第 ${actualWatchedCount} 集`);
 
@@ -192,13 +200,16 @@ const createFavoritesStore = (name: string) =>
                                             hasUpdate: false
                                         };
                                     }
+                                } else {
+                                    console.warn(`⚠️ API 有回傳資料，但找不到對應影片。`);
                                 }
+                            } else {
+                                console.warn(`⚠️ API 請求失敗，狀態碼:`, res.status);
                             }
                         } catch (error) {
                             console.error(`❌ 檢查 ${fav.title} 更新失敗:`, error);
                         }
 
-                        // 每次請求間隔 600ms，保護您的伺服器與片源不被 Ban
                         await new Promise(resolve => setTimeout(resolve, 600));
                     }
 
