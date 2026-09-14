@@ -5,14 +5,14 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { FavoriteItem } from '@/lib/types';
+import type { FavoriteItem, VideoHistoryItem } from '@/lib/types';
 import { profiledKey } from '@/lib/utils/profile-storage';
 
 const MAX_FAVORITES = 100;
 
 interface FavoritesState {
     favorites: FavoriteItem[];
-    isCheckingUpdates: boolean; // 新增：是否正在檢查更新中
+    isCheckingUpdates: boolean;
 }
 
 interface FavoritesActions {
@@ -23,20 +23,14 @@ interface FavoritesActions {
     clearFavorites: () => void;
     importFavorites: (favorites: FavoriteItem[]) => void;
     
-    // 🍎 新增的 Actions
-    checkUpdates: () => Promise<void>; 
+    // 🍎 修改：傳入歷史紀錄作為比對基準
+    checkUpdates: (historyItems: VideoHistoryItem[]) => Promise<void>; 
     clearUpdateBadge: (videoId: string | number, source: string) => void;
 }
 
 interface FavoritesStore extends FavoritesState, FavoritesActions { }
 
-/**
- * Generate unique identifier for a favorite item
- */
-function generateFavoriteId(
-    videoId: string | number,
-    source: string
-): string {
+function generateFavoriteId(videoId: string | number, source: string): string {
     return `${source}:${videoId}`;
 }
 
@@ -54,26 +48,15 @@ const createFavoritesStore = (name: string) =>
                         const exists = state.favorites.some(
                             (fav) => generateFavoriteId(fav.videoId, fav.source) === favoriteId
                         );
-
-                        if (exists) {
-                            return state;
-                        }
-
-                        // 解析 remarks (如："更新至第 10 集" 或 "全 12 集") 來嘗試當作初始集數，若無則設為 0
-                        let initialCount = 0;
-                        if (item.remarks) {
-                            const match = item.remarks.match(/\d+/);
-                            if (match) initialCount = parseInt(match[0], 10);
-                        }
+                        if (exists) return state;
 
                         const newFavorite: FavoriteItem = {
                             ...item,
-                            savedEpisodeCount: initialCount, 
+                            savedEpisodeCount: 1, // 預設收藏時當作第 1 集
                             addedAt: Date.now(),
                         };
 
                         let newFavorites = [newFavorite, ...state.favorites];
-
                         if (newFavorites.length > MAX_FAVORITES) {
                             newFavorites = newFavorites.slice(0, MAX_FAVORITES);
                         }
@@ -84,7 +67,6 @@ const createFavoritesStore = (name: string) =>
 
                 removeFavorite: (videoId, source) => {
                     const favoriteId = generateFavoriteId(videoId, source);
-
                     set((state) => ({
                         favorites: state.favorites.filter(
                             (fav) => generateFavoriteId(fav.videoId, fav.source) !== favoriteId
@@ -116,15 +98,9 @@ const createFavoritesStore = (name: string) =>
                     );
                 },
 
-                clearFavorites: () => {
-                    set({ favorites: [] });
-                },
+                clearFavorites: () => set({ favorites: [] }),
+                importFavorites: (favorites) => set({ favorites }),
 
-                importFavorites: (favorites) => {
-                    set({ favorites });
-                },
-
-                // 🍎 實作：清除特定影片的「更新 (NEW)」標記，並更新已儲存的集數
                 clearUpdateBadge: (videoId, source) => {
                     const favoriteId = generateFavoriteId(videoId, source);
                     set((state) => ({
@@ -141,8 +117,8 @@ const createFavoritesStore = (name: string) =>
                     }));
                 },
 
-                // 🍎 實作：一鍵檢查所有收藏影片的更新
-                checkUpdates: async () => {
+                // 🍎 終極完美版：結合觀看歷史，並使用雙重驗證算集數
+                checkUpdates: async (historyItems) => {
                     const { favorites } = get();
                     if (favorites.length === 0) return;
 
@@ -153,32 +129,47 @@ const createFavoritesStore = (name: string) =>
                         const fav = updatedFavorites[i];
                         
                         try {
-                            // 這裡透過搜尋 API 來檢查最新狀態
+                            // 去搜尋這部影片
                             const res = await fetch(`/api/search?keyword=${encodeURIComponent(fav.title)}`);
-                            
                             if (res.ok) {
                                 const data = await res.json();
-                                
-                                // 找到同源且 ID 相同的影片
                                 const currentVideo = data?.list?.find(
                                     (v: any) => String(v.vod_id) === String(fav.videoId) && v.source === fav.source
                                 );
                                 
-                                if (currentVideo && currentVideo.vod_remarks) {
-                                    // 從 vod_remarks 萃取集數數字 (例如："更新至 15 集" -> 15)
-                                    const match = currentVideo.vod_remarks.match(/\d+/);
-                                    if (match) {
-                                        const fetchedEpisodeCount = parseInt(match[0], 10);
-                                        const savedCount = fav.savedEpisodeCount || 0;
+                                if (currentVideo) {
+                                    let fetchedEpisodeCount = 0;
 
-                                        if (fetchedEpisodeCount > savedCount) {
-                                            updatedFavorites[i] = {
-                                                ...fav,
-                                                latestEpisodeCount: fetchedEpisodeCount,
-                                                hasUpdate: true,
-                                                remarks: currentVideo.vod_remarks // 順便更新畫面上顯示的備註
-                                            };
-                                        }
+                                    // 【精準算法】如果 API 有回傳播放網址 (vod_play_url)，通常是用 # 隔開每一集
+                                    if (currentVideo.vod_play_url) {
+                                        fetchedEpisodeCount = currentVideo.vod_play_url.split('#').length;
+                                    } 
+                                    // 備案：嘗試從 vod_remarks 萃取數字
+                                    else if (currentVideo.vod_remarks) {
+                                        const match = currentVideo.vod_remarks.match(/\d+/);
+                                        if (match) fetchedEpisodeCount = parseInt(match[0], 10);
+                                    }
+
+                                    // 🍎【核心邏輯】去歷史紀錄撈取這部片真實的觀看進度 (episodeIndex 是從 0 開始，所以要 +1)
+                                    const historyMatch = historyItems.find(h => String(h.videoId) === String(fav.videoId) && h.source === fav.source);
+                                    const actualWatchedCount = historyMatch ? (historyMatch.episodeIndex + 1) : (fav.savedEpisodeCount || 1);
+
+                                    // 如果最新集數 > 用戶實際看過的集數，就判定為有更新！
+                                    if (fetchedEpisodeCount > 0 && fetchedEpisodeCount > actualWatchedCount) {
+                                        updatedFavorites[i] = {
+                                            ...fav,
+                                            latestEpisodeCount: fetchedEpisodeCount,
+                                            savedEpisodeCount: actualWatchedCount, // 同步最新的歷史進度到最愛
+                                            hasUpdate: true,
+                                            remarks: currentVideo.vod_remarks || `更新至第 ${fetchedEpisodeCount} 集`
+                                        };
+                                    } else {
+                                        // 沒更新也把歷史進度同步過來，保持資料最新
+                                        updatedFavorites[i] = {
+                                            ...fav,
+                                            savedEpisodeCount: actualWatchedCount,
+                                            hasUpdate: false
+                                        };
                                     }
                                 }
                             }
@@ -186,7 +177,7 @@ const createFavoritesStore = (name: string) =>
                             console.error(`檢查 ${fav.title} 更新失敗:`, error);
                         }
 
-                        // 每次請求間隔 600ms，防止被片源 API 阻擋
+                        // 每次請求間隔 600ms，防止被 Ban
                         await new Promise(resolve => setTimeout(resolve, 600));
                     }
 
@@ -202,9 +193,6 @@ const createFavoritesStore = (name: string) =>
 export const useFavoritesStore = createFavoritesStore(profiledKey('kvideo-favorites-store'));
 export const usePremiumFavoritesStore = createFavoritesStore(profiledKey('kvideo-premium-favorites-store'));
 
-/**
- * Helper hook to get the appropriate favorites store
- */
 export function useFavorites(isPremium = false) {
     const normalStore = useFavoritesStore();
     const premiumStore = usePremiumFavoritesStore();
