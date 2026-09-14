@@ -1,17 +1,12 @@
 'use client';
 
-/**
- * FavoritesItem - Individual favorite item card
- * Matches HistoryItem layout for consistency
- */
-
 import { Icons } from '@/components/ui/Icon';
 import { formatDate } from '@/lib/utils/format-utils';
 import { getSourceName } from '@/lib/utils/source-names';
 import { storeGroupedSources } from '@/lib/utils/grouped-sources-cache';
 import type { FavoriteItem } from '@/lib/types';
-// 🍎 引入我們寫好的 Store
-import { useFavorites } from '@/lib/store/favorites-store';
+// 🍎 改為直接引入底層 Store
+import { useFavoritesStore, usePremiumFavoritesStore } from '@/lib/store/favorites-store';
 
 interface FavoritesItemProps {
     item: FavoriteItem;
@@ -20,16 +15,21 @@ interface FavoritesItemProps {
 }
 
 export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesItemProps) {
-    // 🍎 取出清除更新徽章的函數
-    const { clearUpdateBadge } = useFavorites(isPremium);
+    // 🍎 效能優化：精準抓取 clearUpdateBadge，防止記憶體過載
+    const useStore = isPremium ? usePremiumFavoritesStore : useFavoritesStore;
+    const clearUpdateBadge = useStore(state => state.clearUpdateBadge);
+
+    // 🍎 終極防呆機制：如果遇到舊版損壞的資料，直接跳過不渲染，防止整個畫面崩潰！
+    if (!item || !item.videoId) return null;
 
     const getVideoUrl = (): string => {
         const params = new URLSearchParams({
             id: item.videoId.toString(),
-            source: item.source,
-            title: item.title,
+            source: item.source || '',
+            title: item.title || '',
         });
-        if (item.sourceMap && Object.keys(item.sourceMap).length > 1) {
+        
+        if (item.sourceMap && typeof item.sourceMap === 'object' && Object.keys(item.sourceMap).length > 1) {
             const groupData = Object.entries(item.sourceMap).map(([sourceName, videoId]) => ({
                 id: videoId,
                 source: sourceName,
@@ -48,12 +48,9 @@ export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesIt
     };
 
     const handleClick = (event: React.MouseEvent) => {
-        // 🍎 當使用者點擊觀看這部影片時，如果它帶有更新標記，就將其清除
         if (item.hasUpdate) {
             clearUpdateBadge(item.videoId, item.source);
         }
-
-        // Middle mouse or Ctrl/Cmd+click opens in new tab
         if (event.button === 1 || event.ctrlKey || event.metaKey) {
             event.preventDefault();
             window.open(getVideoUrl(), '_blank');
@@ -76,12 +73,11 @@ export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesIt
                 className="block"
             >
                 <div className="flex gap-3">
-                    {/* Poster - Same size as HistoryItem */}
                     <div className="relative w-28 h-16 flex-shrink-0 bg-[var(--glass-bg)] rounded-[var(--radius-2xl)] overflow-hidden">
                         {item.poster ? (
                             <img
                                 src={item.poster}
-                                alt={item.title}
+                                alt={item.title || '影片'}
                                 className="w-full h-full object-cover"
                                 referrerPolicy="no-referrer"
                                 onError={(e) => {
@@ -91,12 +87,10 @@ export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesIt
                             />
                         ) : null}
                         
-                        {/* Fallback icon */}
                         <div className="absolute inset-0 flex items-center justify-center -z-10">
                             <Icons.Film size={32} className="text-[var(--text-color-secondary)] opacity-30" />
                         </div>
 
-                        {/* 🍎 新增：有更新時顯示紅色的 NEW 徽章 */}
                         {item.hasUpdate && (
                             <div className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md z-10 animate-pulse border border-white/20">
                                 NEW
@@ -104,10 +98,9 @@ export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesIt
                         )}
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-[var(--text-color)] truncate group-hover:text-[var(--accent-color)] transition-colors mb-1">
-                            {item.title}
+                            {item.title || '未知影片'}
                         </h3>
                         {item.year && (
                             <p className="text-xs text-[var(--text-color-secondary)] mb-1">
@@ -115,21 +108,18 @@ export function FavoritesItem({ item, onRemove, isPremium = false }: FavoritesIt
                             </p>
                         )}
                         <div className="flex items-center justify-between text-xs text-[var(--text-color-secondary)]">
-                            {/* 因為我們的 Store 會自動將 API 抓到的最新備註寫入 item.remarks，所以這裡會直接顯示「更新至第 X 集」 */}
                             {item.remarks && (
                                 <span className={`truncate ${item.hasUpdate ? 'text-[var(--accent-color)] font-medium' : ''}`}>
                                     {item.remarks}
                                 </span>
                             )}
                             <span className="flex-shrink-0 ml-2">
-                                {formatDate(item.addedAt)}
+                                {item.addedAt ? formatDate(item.addedAt) : ''}
                             </span>
                         </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex flex-col gap-1 self-start opacity-0 group-hover:opacity-100 transition-opacity">
-                        {/* Remove button */}
                         <button
                             onClick={(e) => {
                                 e.preventDefault();
