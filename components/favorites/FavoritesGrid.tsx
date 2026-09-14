@@ -4,11 +4,16 @@ import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import { VideoCard } from '@/components/search/VideoCard';
 import { FavoritesEmptyState } from './FavoritesEmptyState';
 import type { FavoriteItem, Video } from '@/lib/types';
+// 🍎 引入底層 Store，用來清除更新標記
+import { useFavoritesStore, usePremiumFavoritesStore } from '@/lib/store/favorites-store';
 
 interface FavoritesGridProps {
   favorites: FavoriteItem[];
   isPremium?: boolean;
 }
+
+// 擴充原有的 Video 型別，讓它能往下傳遞 hasUpdate 屬性
+type ExtendedVideo = Video & { _hasUpdate?: boolean };
 
 export const FavoritesGrid = memo(function FavoritesGrid({
   favorites,
@@ -19,8 +24,12 @@ export const FavoritesGrid = memo(function FavoritesGrid({
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // 🍎 抓取清除標籤的函數
+  const useStore = isPremium ? usePremiumFavoritesStore : useFavoritesStore;
+  const clearUpdateBadge = useStore(state => state.clearUpdateBadge);
+
   // Convert FavoriteItem to Video format
-  const videos: Video[] = useMemo(
+  const videos: ExtendedVideo[] = useMemo(
     () =>
       favorites.map((favorite) => ({
         vod_id: favorite.videoId,
@@ -31,6 +40,7 @@ export const FavoritesGrid = memo(function FavoritesGrid({
         type_name: favorite.type,
         source: favorite.source,
         sourceName: favorite.sourceName,
+        _hasUpdate: favorite.hasUpdate, // 🍎 把更新標記綁定進來
       })),
     [favorites]
   );
@@ -83,15 +93,32 @@ export const FavoritesGrid = memo(function FavoritesGrid({
           const isActive = activeCardId === cardId;
 
           return (
-            <VideoCard
-              key={cardId}
-              video={video}
-              videoUrl={videoUrl}
-              cardId={cardId}
-              isActive={isActive}
-              onCardClick={handleCardClick}
-              isPremium={isPremium}
-            />
+            <div 
+              key={cardId} 
+              className="relative h-full w-full group"
+              // 🍎 攔截點擊事件：如果卡片有更新標記，就在點擊觀看時把它清除
+              onClickCapture={() => {
+                if (video._hasUpdate) {
+                  clearUpdateBadge(video.vod_id, video.source);
+                }
+              }}
+            >
+              <VideoCard
+                video={video}
+                videoUrl={videoUrl}
+                cardId={cardId}
+                isActive={isActive}
+                onCardClick={handleCardClick}
+                isPremium={isPremium}
+              />
+              
+              {/* 🍎 NEW 徽章浮動渲染：疊加在 VideoCard 影片海報右上角 */}
+              {video._hasUpdate && (
+                <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded shadow-md z-20 animate-pulse border border-white/20 pointer-events-none">
+                  NEW
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
