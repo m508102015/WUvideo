@@ -12,7 +12,7 @@ export interface VideoSource {
   headers?: Record<string, string>;
   enabled?: boolean;
   priority?: number;
-  group?: 'normal' | 'premium'; // Categorize source type for routing
+  group?: 'normal' | 'premium';
 }
 
 // Source Subscription for auto-updating sources from a URL
@@ -20,7 +20,7 @@ export interface SourceSubscription {
   id: string;
   name: string;
   url: string;
-  lastUpdated: number; // timestamp
+  lastUpdated: number;
   autoRefresh: boolean;
 }
 
@@ -38,7 +38,7 @@ export interface VideoItem {
   vod_content?: string;
   vod_lang?: string;
   source: string;
-  latency?: number; // Response time in milliseconds
+  latency?: number;
 }
 
 export interface Video extends VideoItem {
@@ -102,8 +102,8 @@ export interface VideoHistoryItem {
   duration: number;
   poster?: string;
   episodes: Episode[];
-  showIdentifier: string; // Unique identifier for deduplication
-  sourceMap?: Record<string, string | number>; // Maps source name to videoId for that source
+  showIdentifier: string;
+  sourceMap?: Record<string, string | number>;
   vod_actor?: string;
   type_name?: string;
   vod_area?: string;
@@ -116,16 +116,20 @@ export interface FavoriteItem {
   poster?: string;
   source: string;
   sourceName?: string;
-  addedAt: number; // timestamp
-  type?: string; // movie type/category
+  addedAt: number;
+  type?: string;
   year?: string;
-  remarks?: string; // e.g., episode info
-  sourceMap?: Record<string, string | number>; // Maps source name to videoId for source switching
-  
-  // 🍎 新增：用於「一鍵檢查更新」功能的欄位
-  savedEpisodeCount?: number;   // 收藏時的總集數
-  latestEpisodeCount?: number;  // 檢查後最新的總集數
-  hasUpdate?: boolean;          // 是否有更新
+  remarks?: string;
+  sourceMap?: Record<string, string | number>;
+
+  // 追劇進度 / 更新檢查（必要欄位，勿刪除）
+  savedEpisodeCount?: number;
+  latestEpisodeCount?: number;
+  watchedEpisode?: number;
+  nextEpisodeIndex?: number;
+  unwatchedEpisodeCount?: number;
+  hasUpdate?: boolean;
+  updateCheckedAt?: number;
 }
 
 // API Response Structures
